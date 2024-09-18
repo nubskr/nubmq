@@ -4,20 +4,19 @@ import (
     "fmt"
     "log"
     "net"
+    "time"
 )
 
-type Nubskr struct {
-	name string
-	age int32
-	message string
-	arr []int
+/*
+This sucks now, but it won't after some time, this is the most basic thing anyone can do, its a long way to go
+*/
+
+type Message struct {
+	data string
+	timestamp int64
 }
 
-func(p Nubskr) one() string {
-	return "one"
-}
-
-func handleConnection(conn net.Conn,nubskr []Nubskr) {
+func handleConnection(conn net.Conn,nubskr *[]Message) {
     fmt.Println("Client connected")
     buffer := make([]byte, 1024)
 	// fmt.Println(buffer)
@@ -29,10 +28,17 @@ func handleConnection(conn net.Conn,nubskr []Nubskr) {
             fmt.Println("Client disconnected")
             return
         }
-        fmt.Printf("Received: %s\n", string(buffer[:length]))
+        data := string(buffer[:length])
+        fmt.Printf("Received: %s\n", data)
+        message := Message {
+            data: data,
+            timestamp: time.Now().Unix(),
+        }
+        *nubskr = append(*nubskr,message)
 
+        fmt.Println(*nubskr)
         // Send a response back to the client
-        _, err = conn.Write([]byte(fmt.Sprint(nubskr[0].arr)))
+        _, err = conn.Write([]byte(fmt.Sprint((*nubskr)[0].data," ", (*nubskr)[0].timestamp)))
         if err != nil {
             fmt.Println("Error sending response")
             return
@@ -40,28 +46,24 @@ func handleConnection(conn net.Conn,nubskr []Nubskr) {
     }
 }
 
-
 func main() {
     ln, err := net.Listen("tcp", ":8080")
     if err != nil {
         log.Fatal(err)
     }
- 
-	v := []Nubskr{} 
 
-	oneNubskr := Nubskr{
-		name: "lmao",
-		age: 69,
-		message: "test - message",
-		arr: []int{1,2,3},
+	message := Message{
+		data: "this is message one",
+		timestamp: 1111,
 	}
 
-	v = append(v,oneNubskr)
-	
-	// fmt.Println(v)
-	
-	v[0].arr = append(v[0].arr,23)
+    // now we need to store the pointer of these messages to something
 
+    v := []Message{} 
+    v = append(v,message)
+
+    fmt.Println(v)
+	
 	fmt.Println("Server listening on :8080")
 
     for {
@@ -73,7 +75,10 @@ func main() {
         }
 
         // Handle the connection
-        handleConnection(conn,v)
+        handleConnection(conn,&v)
+
+        fmt.Println("final stuff", v)
+
         conn.Close() // Close the connection after handling
     }
 }
