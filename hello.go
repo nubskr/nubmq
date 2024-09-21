@@ -7,10 +7,6 @@ import (
     "time"
 )
 
-/*
-This sucks now, but it won't after some time, this is the most basic thing anyone can do, its a long way to go
-*/
-
 type Message struct {
 	data string
 	timestamp int64
