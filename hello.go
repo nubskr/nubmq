@@ -5,6 +5,8 @@ import (
     "log"
     "net"
     "time"
+    // "sync"
+    // "runtime"
 )
 
 type Message struct {
@@ -12,54 +14,78 @@ type Message struct {
 	timestamp int64
 }
 
-func handleConnection(conn net.Conn,nubskr *[]Message) {
-    fmt.Println("Client connected")
-    buffer := make([]byte, 1024)
-	// fmt.Println(buffer)
-	// an empty buffer ?
-    for {
-        // Read data from the connection
-        length, err := conn.Read(buffer)
-        if err != nil {
-            fmt.Println("Client disconnected")
-            return
-        }
-        data := string(buffer[:length])
-        fmt.Printf("Received: %s\n", data)
-        message := Message {
-            data: data,
-            timestamp: time.Now().Unix(),
-        }
-        *nubskr = append(*nubskr,message)
+var connectionChan = make(chan net.Conn)
+var messageChan = make(chan Message)
 
-        fmt.Println(*nubskr)
-        // Send a response back to the client
-        _, err = conn.Write([]byte(fmt.Sprint((*nubskr)[0].data," ", (*nubskr)[0].timestamp)))
-        if err != nil {
-            fmt.Println("Error sending response")
-            return
+func listener(){
+    // always listening
+    fmt.Println("listener started")
+
+    var connections []net.Conn
+
+    for {
+        select{
+        case conn := <- connectionChan:
+            connections = append(connections,conn)
+
+        case msg := <- messageChan:
+            for _,conn:= range connections{
+                _, err := conn.Write([]byte(fmt.Sprint(msg.data))) // Send message over the connection
+
+                if err != nil {
+                    log.Fatal("failed to echo message:" ,err)
+                    // Handle error (e.g., log it, remove the connection, etc.)
+                } else{
+                    fmt.Println("echoed message: ",msg.data)
+                }
+            }
         }
     }
 }
 
+func handleConnection(conn net.Conn) {
+    fmt.Println("Client connected")
+    buffer := make([]byte, 1024)
+    connectionChan <- conn
+    for {
+        // Read data from the connection
+        length, err := conn.Read(buffer)
+        if err != nil {
+            log.Fatal(err)
+            return
+        }
+
+        data := string(buffer[:length])
+        
+        message := Message {
+            data: data,
+            timestamp: time.Now().Unix(),
+        }
+
+        messageChan <- message
+        
+        fmt.Println("received message: ",message)
+        // _, err = conn.Write([]byte(fmt.Sprint("helo wurld")))
+        
+        // if err != nil {
+        //     log.Fatal(err)
+        //     return
+        // }
+    }
+    conn.Close()
+}
+
 func main() {
+    // runtime.GOMAXPROCS(runtime.NumCPU())
+
     ln, err := net.Listen("tcp", ":8080")
+
     if err != nil {
         log.Fatal(err)
     }
 
-	message := Message{
-		data: "this is message one",
-		timestamp: 1111,
-	}
+    go listener()
 
-    // now we need to store the pointer of these messages to something
-
-    v := []Message{} 
-    v = append(v,message)
-
-    fmt.Println(v)
-	
 	fmt.Println("Server listening on :8080")
 
     for {
@@ -70,11 +96,6 @@ func main() {
             continue
         }
 
-        // Handle the connection
-        handleConnection(conn,&v)
-
-        fmt.Println("final stuff", v)
-
-        conn.Close() // Close the connection after handling
+        go handleConnection(conn)   
     }
 }
