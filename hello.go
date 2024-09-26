@@ -1,5 +1,20 @@
 package main
 
+/*
+
+we use a freakin map
+
+last = 0
+put a mutex on last
+
+
+Map[key string] -> last + 1
+
+last++
+
+then just insert the value at that 
+*/
+
 import (
     "fmt"
     "log"
@@ -14,8 +29,55 @@ type Message struct {
 	timestamp int64
 }
 
+/*
+the keys are just a straight off map, we can randomly access them, from the index of a key, we can find the shard number and position in which we need to find the data in that shard
+
+
+
+*/
+
+type Shard struct {
+    size int32
+    data []string
+}
+
+func setKey(sz int32,data []string){
+    // the keys and values are just a string bro
+
+    /*
+    - Check if the key exists in `keys`, if yes then just update it
+    - If it doesnt, then just insert a new one
+
+
+
+    */
+
+
+    // insert a new one
+
+    /*
+    - Append to Keys
+
+    - check if the latest shard has some space or not
+    
+    - 
+    */
+
+
+
+}
+
+func getKey(sz int32,data []string){
+    // the keys and values are just a string bro
+
+
+}
+
+
+
 var connectionChan = make(chan net.Conn)
 var messageChan = make(chan Message)
+var []string Keys
 
 func listener(){
     // always listening

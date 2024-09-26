@@ -58,8 +58,8 @@ func main(){
 
 	one, two := <-chn,<-chn
 
+	
 	fmt.Println(one,two)
-
 	wg.Wait()
 
 	// now we take those shits and add something else to them
