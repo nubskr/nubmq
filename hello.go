@@ -1,26 +1,13 @@
 package main
 
-/*
-
-we use a freakin map
-
-last = 0
-put a mutex on last
-
-
-Map[key string] -> last + 1
-
-last++
-
-then just insert the value at that 
-*/
-
 import (
     "fmt"
     "log"
     "net"
     "time"
-    // "sync"
+    "sync/atomic"
+    "sync"
+    "strings"
     // "runtime"
 )
 
@@ -29,55 +16,105 @@ type Message struct {
 	timestamp int64
 }
 
-/*
-the keys are just a straight off map, we can randomly access them, from the index of a key, we can find the shard number and position in which we need to find the data in that shard
-
-
-
-*/
-
 type Shard struct {
-    size int32
+    // TODO: make the data a []customobject, so that you can just update that object instead of locking down the whole shard
     data []string
+    size int32
 }
 
-func setKey(sz int32,data []string){
-    // the keys and values are just a string bro
-
-    /*
-    - Check if the key exists in `keys`, if yes then just update it
-    - If it doesnt, then just insert a new one
-
-
-
-    */
-
-
-    // insert a new one
-
-    /*
-    - Append to Keys
-
-    - check if the latest shard has some space or not
-    
-    - 
-    */
-
-
-
+type KeyManager struct {
+    Keys  map[string]int32
+    mutex sync.Mutex // for adding new keys
 }
 
-func getKey(sz int32,data []string){
-    // the keys and values are just a string bro
-
-
+type ShardManager struct {
+    Shards []*Shard // pointers to shards
+    mutex  sync.Mutex 
 }
 
+// Hyperparameter
+var ShardSize int32 = 2
 
+// Global variables
+var keyManager = KeyManager{
+    Keys: make(map[string]int32),
+}
+
+var shardManager = ShardManager{
+    Shards: make([]*Shard, 0),
+}
 
 var connectionChan = make(chan net.Conn)
 var messageChan = make(chan Message)
-var []string Keys
+var nextIdx int32 = 0 
+
+func getNewShard() *Shard {
+    return &Shard{
+        data: make([]string, 0, ShardSize),
+        size: 0,
+    }
+}
+
+func _setKey(key string, value string) {
+    // Lock keyManager to ensure thread safety for adding keys
+    keyManager.mutex.Lock()
+    idx, exists := keyManager.Keys[key]
+    if !exists {
+        fmt.Println("not exists here!!")
+        keyManager.Keys[key] = val
+        idx = val
+        val := atomic.AddInt32(&nextIdx, 1)
+    }
+    keyManager.mutex.Unlock()
+
+    shardNumber := (idx + ShardSize - 1) / ShardSize
+    localShardIndex := idx%ShardSize 
+
+    fmt.Println("setting key",key,"at",idx,"at shard number",shardNumber,"at local index",localShardIndex)
+    
+    // Lock shardManager to ensure thread safety for adding shards
+    shardManager.mutex.Lock()
+    defer shardManager.mutex.Unlock()
+
+    for shardNumber >= int32(len(shardManager.Shards)) {
+        shardManager.Shards = append(shardManager.Shards, getNewShard())
+    }
+
+    shard := shardManager.Shards[shardNumber]
+
+    if int32(len(shard.data)) > localShardIndex{
+        shard.data[localShardIndex] = value
+    } else {
+        shard.data = append(shard.data, value)
+    }
+}
+
+func _getKey(key string) (string, bool) {
+    // Read from keyManager without locking
+    idx, exists := keyManager.Keys[key]
+    if !exists {
+        return "NaN", false
+    }
+
+    shardNumber := (idx + ShardSize - 1 ) / ShardSize
+
+    shardManager.mutex.Lock()
+    defer shardManager.mutex.Unlock()
+
+    if shardNumber >= int32(len(shardManager.Shards)) {
+        return "", false
+    }
+
+    shard := shardManager.Shards[shardNumber]
+    localShardIndex := idx % ShardSize
+    
+    if localShardIndex < int32(len(shard.data)) {
+        return shard.data[localShardIndex], true
+    }
+
+    // shard does not exist, should never reach here!!!!
+    return "NaN", false
+}
 
 func listener(){
     // always listening
@@ -118,7 +155,28 @@ func handleConnection(conn net.Conn) {
         }
 
         data := string(buffer[:length])
-        
+
+        stringData := strings.Fields(data)
+
+        // output := "NaN" 
+
+        if stringData[0] == "SET"{
+            _setKey(stringData[1],stringData[2])
+        } else{
+            output , exists := _getKey(stringData[1])
+
+            fmt.Println(exists)
+
+            _, err := conn.Write([]byte(fmt.Sprint(output))) // Send message over the connection
+
+            if err != nil {
+                log.Fatal("failed to reply message:" ,err)
+                // Handle error (e.g., log it, remove the connection, etc.)
+            } else{
+                fmt.Println("replied message: ",output)
+            }
+        }
+
         message := Message {
             data: data,
             timestamp: time.Now().Unix(),
@@ -127,6 +185,7 @@ func handleConnection(conn net.Conn) {
         messageChan <- message
         
         fmt.Println("received message: ",message)
+
         // _, err = conn.Write([]byte(fmt.Sprint("helo wurld")))
         
         // if err != nil {
