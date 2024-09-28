@@ -45,6 +45,7 @@ func bruh_wut(waitgroup *sync.WaitGroup,chn *chan string) {
 }
 
 func main(){
+	// ..
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	var wg sync.WaitGroup
 
