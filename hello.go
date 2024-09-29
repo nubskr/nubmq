@@ -16,9 +16,14 @@ type Message struct {
 	timestamp int64
 }
 
+type ValueData struct {
+	data string
+    mutex sync.RWMutex
+}
+
 type Shard struct {
     // TODO: make the data a []customobject, so that you can just update that object instead of locking down the whole shard
-    data []string
+    data []*ValueData
     size int32
 }
 
@@ -29,7 +34,7 @@ type KeyManager struct {
 
 type ShardManager struct {
     Shards []*Shard // pointers to shards
-    mutex  sync.Mutex 
+    mutex  sync.RWMutex 
 }
 
 // Hyperparameter
@@ -46,12 +51,17 @@ var shardManager = ShardManager{
 
 var connectionChan = make(chan net.Conn)
 var messageChan = make(chan Message)
-var nextIdx int32 = 0 
+var nextIdx int32 = -1
 
 func getNewShard() *Shard {
     return &Shard{
-        data: make([]string, 0, ShardSize),
-        size: 0,
+        data: make([]*ValueData, 0, ShardSize),
+    }
+}
+
+func getNewValueData(value string) *ValueData{
+    return &ValueData{
+        data: value,
     }
 }
 
@@ -61,9 +71,9 @@ func _setKey(key string, value string) {
     idx, exists := keyManager.Keys[key]
     if !exists {
         fmt.Println("not exists here!!")
+        val := atomic.AddInt32(&nextIdx, 1)
         keyManager.Keys[key] = val
         idx = val
-        val := atomic.AddInt32(&nextIdx, 1)
     }
     keyManager.mutex.Unlock()
 
@@ -81,11 +91,12 @@ func _setKey(key string, value string) {
     }
 
     shard := shardManager.Shards[shardNumber]
+    newVal := getNewValueData(value)
 
     if int32(len(shard.data)) > localShardIndex{
-        shard.data[localShardIndex] = value
+        *shard.data[localShardIndex] = *newVal
     } else {
-        shard.data = append(shard.data, value)
+        shard.data = append(shard.data, newVal)
     }
 }
 
@@ -96,22 +107,26 @@ func _getKey(key string) (string, bool) {
         return "NaN", false
     }
 
-    shardNumber := (idx + ShardSize - 1 ) / ShardSize
+    shardNumber := (idx + ShardSize - 1) / ShardSize
 
     shardManager.mutex.Lock()
     defer shardManager.mutex.Unlock()
 
     if shardNumber >= int32(len(shardManager.Shards)) {
+        fmt.Println("first off")
         return "", false
     }
 
     shard := shardManager.Shards[shardNumber]
     localShardIndex := idx % ShardSize
     
+    // fmt.Println(localShardIndex,*shard.data[1])
+
     if localShardIndex < int32(len(shard.data)) {
-        return shard.data[localShardIndex], true
+        return (shard.data[localShardIndex]).data, true
     }
 
+    fmt.Println("second off")
     // shard does not exist, should never reach here!!!!
     return "NaN", false
 }
@@ -185,13 +200,6 @@ func handleConnection(conn net.Conn) {
         messageChan <- message
         
         fmt.Println("received message: ",message)
-
-        // _, err = conn.Write([]byte(fmt.Sprint("helo wurld")))
-        
-        // if err != nil {
-        //     log.Fatal(err)
-        //     return
-        // }
     }
     conn.Close()
 }
