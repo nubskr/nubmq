@@ -1,6 +1,7 @@
 package main
 
 import (
+    "os"
     "fmt"
     "log"
     "net"
@@ -34,6 +35,13 @@ Updated scene:
         []*Shard
         shardmanager_size int32
         current_
+*/
+
+/*
+TODO:
+- expiry for a key ? (just make another go routine which cleans shit ? no please, lmao)
+
+- Key eviction (why we need this: what if shit gets full, how will we deal with it then ? increase the darn memory ffs, what else would you do)
 
 */
 
@@ -63,7 +71,7 @@ type ShardManager struct {
 }
 
 // Hyperparameter
-var ShardSize int32 = 2
+var ShardSize int32 = 1
 
 // Global variables
 var keyManager = KeyManager{
@@ -76,6 +84,7 @@ var shardManager = ShardManager{
 
 var connectionChan = make(chan net.Conn)
 var messageChan = make(chan Message)
+var ShardManagerSizeLim = make(chan int32)
 var curShardManagerSize = make(chan int32)
 
 var nextIdx int32 = -1
@@ -94,42 +103,48 @@ func getNewValueData(value string) *ValueData{
 }
 
 func resizeShardManager(){
-    // fmt.Println(shardManager.Shards)
-    
     for {
-        // fmt.Println("===========================================")
-        curSize := <- curShardManagerSize
+        fmt.Println(">-==-==-==-==-==-==-==-==-==-==-==-==-==-==-==-==-<")
+        curShardManagerSizeLim := <- ShardManagerSizeLim
         
-        fmt.Println("im here")
+        curSize := <- curShardManagerSize
 
-        if int32(len(shardManager.Shards)) >= curSize {
+        fmt.Println("start of resizing function")
+
+        if curSize == curShardManagerSizeLim {
             fmt.Println("Resizing the whole darn shit now!!")
 
             // lock down the whole shit
             shardManager.mutex.Lock()
             
-            addSize := curSize
-            curSize *= 2
+            addSize := curShardManagerSizeLim
+            curShardManagerSizeLim *= 2
 
-            // I hope the below thing is concurrency safe....
-
+            // I hope the below thing is concurrency safe...
             // newShards := make([]ShardManager, 1)
             
             newShards := shardManager
 
-            // add addSize more shards to this shit
-            for i := len(shardManager.Shards); i < len(shardManager.Shards)+ int(addSize) ; i++ {
+            lenn := len(shardManager.Shards)
+            for i := len(shardManager.Shards); i < lenn + int(addSize) ; i++ {
                 // newShards.Shard[i] = getNewShard(ShardSize)
-                newShards.Shards = append(newShards.Shards,getNewShard(1))
+                fmt.Println("burrrrrrr")
+                newShards.Shards = append(newShards.Shards,getNewShard(ShardSize))
             }
 
             shardManager = newShards
 
             shardManager.mutex.Unlock()
 
+            // TODO: something wrong here
+            // curShardManagerSize <- curSize + 1
+
+        } else {
         }
-        fmt.Println(123)
         curShardManagerSize <- curSize
+        fmt.Println("curshardmanagersize updated")
+        ShardManagerSizeLim <- curShardManagerSizeLim
+        fmt.Println("end of resizing function")
     }
 }
 
@@ -139,6 +154,8 @@ func _setKey(key string, value string) {
     // we are accessing the length of the number of shards and that is not what we want, we need another way to access shit man, this is bad, very very bad
     
     // Lock keyManager to ensure thread safety for adding keys
+
+    // fmt.Println("inside the set function")
     keyManager.mutex.Lock()
     idx, exists := keyManager.Keys[key]
     if !exists {
@@ -149,39 +166,51 @@ func _setKey(key string, value string) {
     }
     keyManager.mutex.Unlock()
 
-    shardNumber := (idx + ShardSize - 1) / ShardSize
+    shardNumber := idx / ShardSize
     localShardIndex := idx%ShardSize 
+
+    if localShardIndex == 0 {
+        fmt.Println("start")
+        // tmp := <- curShardManagerSize
+        // fmt.Println("start1")
+        // shit := <- curShardManagerSize
+        // fmt.Println(tmp)
+        // curShardManagerSize <- tmp + 1
+    }
+    fmt.Println("end")
 
     fmt.Println("setting key",key,"at",idx,"at shard number",shardNumber,"at local index",localShardIndex)
     
     // Lock shardManager to ensure thread safety for adding shards
-    fmt.Println("before locking")
+    // fmt.Println("before locking")
 
-    // shardManager.mutex.Unlock() // wtf bruh :skull:
-    
     shardManager.mutex.Lock()
-    
-    defer shardManager.mutex.Unlock()
 
     fmt.Println("locked now")
 
     fmt.Println(shardManager.Shards)
 
-
     for shardNumber >= int32(len(shardManager.Shards)) {
         // this is not good, we make it happen on its own!!
-        fmt.Errorf("nooooo senpaiiiiiiiiii")
+        fmt.Println("help me dadddy, I feel bad about this")
+        os.Exit(1)
+        // fmt.Errorf("nooooo senpaiiiiiiiiii, this is notttttt goooood")
     }
 
+    fmt.Println("before")
     shard := shardManager.Shards[shardNumber]
     newVal := getNewValueData(value)
+    fmt.Println("after")
 
     if int32(len(shard.data)) > localShardIndex{
         fmt.Println("hi mom",shard.data)
         shard.data[localShardIndex] = newVal
     } else {
-        fmt.Errorf("oh nu, hewp me daddy")
+        fmt.Println("oh nu, hewp me daddy")
     }
+
+    shardManager.mutex.Unlock()
+    fmt.Println("Unlocked now")
 }
 
 func _getKey(key string) (string, bool) {
@@ -191,7 +220,7 @@ func _getKey(key string) (string, bool) {
         return "NaN", false
     }
 
-    shardNumber := (idx + ShardSize - 1) / ShardSize
+    shardNumber := idx / ShardSize
 
     shardManager.mutex.Lock()
     defer shardManager.mutex.Unlock()
@@ -234,7 +263,7 @@ func listener(){
                     log.Fatal("failed to echo message:" ,err)
                     // Handle error (e.g., log it, remove the connection, etc.)
                 } else{
-                    fmt.Println("echoed message: ",msg.data)
+                    // fmt.Println("echoed message: ",msg.data)
                 }
             }
         }
@@ -258,9 +287,11 @@ func handleConnection(conn net.Conn) {
 
         stringData := strings.Fields(data)
 
+        fmt.Println("we have a new message",data)
         // output := "NaN" 
 
         if stringData[0] == "SET"{
+            // fmt.Println("Trying to set shit")
             _setKey(stringData[1],stringData[2])
         } else{
             output , exists := _getKey(stringData[1])
@@ -299,11 +330,14 @@ func main() {
     }
 
     go listener()
-    
     go resizeShardManager()
 
-    shardManager.Shards[0] = getNewShard(ShardSize)
+    
+    ShardManagerSizeLim <- 1
     curShardManagerSize <- 1
+
+    shardManager.Shards[0] = getNewShard(ShardSize)
+
 
 	fmt.Println("Server listening on :8080")
 
