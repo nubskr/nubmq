@@ -1,7 +1,6 @@
 package main
 
 import (
-    "os"
     "fmt"
     "log"
     "net"
@@ -102,6 +101,29 @@ func getNewValueData(value string) *ValueData{
     }
 }
 
+func resizeShardManagerWorker(addSize int32,curSize int32,curShardManagerSizeLim int32){
+    fmt.Println("Starting resizing")
+    shardManager.mutex.Lock()
+
+    newShards := shardManager
+
+    lenn := len(shardManager.Shards)
+    for i := len(shardManager.Shards); i < lenn + int(addSize) ; i++ {
+        // newShards.Shard[i] = getNewShard(ShardSize)
+        fmt.Println("burrrrrrr")
+        newShards.Shards = append(newShards.Shards,getNewShard(ShardSize))
+    }
+
+    shardManager = newShards
+
+    shardManager.mutex.Unlock()
+    fmt.Println("resizing done")
+    curShardManagerSize <- curSize
+    fmt.Println("curshardmanagersize updated")
+    ShardManagerSizeLim <- curShardManagerSizeLim
+    fmt.Println("end of resizing function")
+}
+
 func resizeShardManager(){
     for {
         fmt.Println(">-==-==-==-==-==-==-==-==-==-==-==-==-==-==-==-==-<")
@@ -112,39 +134,13 @@ func resizeShardManager(){
         fmt.Println("start of resizing function")
 
         if curSize == curShardManagerSizeLim {
-            fmt.Println("Resizing the whole darn shit now!!")
-
-            // lock down the whole shit
-            shardManager.mutex.Lock()
-            
+            fmt.Println("triggering resizing")
             addSize := curShardManagerSizeLim
             curShardManagerSizeLim *= 2
-
-            // I hope the below thing is concurrency safe...
-            // newShards := make([]ShardManager, 1)
-            
-            newShards := shardManager
-
-            lenn := len(shardManager.Shards)
-            for i := len(shardManager.Shards); i < lenn + int(addSize) ; i++ {
-                // newShards.Shard[i] = getNewShard(ShardSize)
-                fmt.Println("burrrrrrr")
-                newShards.Shards = append(newShards.Shards,getNewShard(ShardSize))
-            }
-
-            shardManager = newShards
-
-            shardManager.mutex.Unlock()
-
-            // TODO: something wrong here
-            // curShardManagerSize <- curSize + 1
-
+            go resizeShardManagerWorker(addSize,curSize,curShardManagerSizeLim)
         } else {
+            fmt.Println("Nothin to do here")
         }
-        curShardManagerSize <- curSize
-        fmt.Println("curshardmanagersize updated")
-        ShardManagerSizeLim <- curShardManagerSizeLim
-        fmt.Println("end of resizing function")
     }
 }
 
@@ -168,14 +164,22 @@ func _setKey(key string, value string) {
 
     shardNumber := idx / ShardSize
     localShardIndex := idx%ShardSize 
+    // 0,1,2,3,4,0,1,2,3,4....
 
     if localShardIndex == 0 {
-        fmt.Println("start")
-        // tmp := <- curShardManagerSize
-        // fmt.Println("start1")
-        // shit := <- curShardManagerSize
-        // fmt.Println(tmp)
-        // curShardManagerSize <- tmp + 1
+        // at the start to each shard, just increase the current size 
+
+        fmt.Println("start0")
+
+        // flush the channel
+        tmp := <- curShardManagerSize
+        
+        fmt.Println("start1")
+        
+        // update the channel
+        curShardManagerSize <- tmp + 1
+
+        fmt.Println("start2")
     }
     fmt.Println("end")
 
@@ -190,10 +194,11 @@ func _setKey(key string, value string) {
 
     fmt.Println(shardManager.Shards)
 
-    for shardNumber >= int32(len(shardManager.Shards)) {
+    if shardNumber >= int32(len(shardManager.Shards)) {
         // this is not good, we make it happen on its own!!
         fmt.Println("help me dadddy, I feel bad about this")
-        os.Exit(1)
+        // go resizeShardManager()
+        // os.Exit(1)
         // fmt.Errorf("nooooo senpaiiiiiiiiii, this is notttttt goooood")
     }
 
