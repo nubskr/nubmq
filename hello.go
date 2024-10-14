@@ -83,8 +83,8 @@ var shardManager = ShardManager{
 
 var connectionChan = make(chan net.Conn)
 var messageChan = make(chan Message)
-var ShardManagerSizeLim = make(chan int32)
-var curShardManagerSize = make(chan int32)
+var ShardManagerSizeLim = make(chan int32,1)
+var curShardManagerSize = make(chan int32,1)
 
 var nextIdx int32 = -1
 
@@ -115,31 +115,40 @@ func resizeShardManagerWorker(addSize int32,curSize int32,curShardManagerSizeLim
     }
 
     shardManager = newShards
-
     shardManager.mutex.Unlock()
+
     fmt.Println("resizing done")
     curShardManagerSize <- curSize
     fmt.Println("curshardmanagersize updated")
     ShardManagerSizeLim <- curShardManagerSizeLim
     fmt.Println("end of resizing function")
+
+    
 }
 
 func resizeShardManager(){
     for {
-        fmt.Println(">-==-==-==-==-==-==-==-==-==-==-==-==-==-==-==-==-<")
+        // fmt.Println(">-==-==-==-==-==-==-==-==-==-==-==-==-==-==-==-==-<")
+        
         curShardManagerSizeLim := <- ShardManagerSizeLim
         
         curSize := <- curShardManagerSize
 
-        fmt.Println("start of resizing function")
+        // fmt.Println("start of resizing function")
+        // fmt.Println("current size is ",curSize)
 
         if curSize == curShardManagerSizeLim {
             fmt.Println("triggering resizing")
             addSize := curShardManagerSizeLim
             curShardManagerSizeLim *= 2
             go resizeShardManagerWorker(addSize,curSize,curShardManagerSizeLim)
+            
+            // block here untill the above go routine completes
+            // fmt.Println("resizing triggered")
         } else {
-            fmt.Println("Nothin to do here")
+            // fmt.Println("Nothin to do here")
+            curShardManagerSize <- curSize // blocked untill someone listens to this shit
+            ShardManagerSizeLim <- curShardManagerSizeLim
         }
     }
 }
@@ -171,14 +180,16 @@ func _setKey(key string, value string) {
 
         fmt.Println("start0")
 
-        // flush the channel
+        
         tmp := <- curShardManagerSize
         
         fmt.Println("start1")
         
         // update the channel
-        curShardManagerSize <- tmp + 1
 
+        curShardManagerSize <- tmp + 1
+        
+        // } we want this encapsulated shit to happen exactly at once!!
         fmt.Println("start2")
     }
     fmt.Println("end")
