@@ -70,7 +70,7 @@ type ShardManager struct {
 }
 
 // Hyperparameter
-var ShardSize int32 = 1
+var ShardSize int32 = 4
 
 // Global variables
 var keyManager = KeyManager{
@@ -104,26 +104,26 @@ func getNewValueData(value string) *ValueData{
 func resizeShardManagerWorker(addSize int32,curSize int32,curShardManagerSizeLim int32){
     fmt.Println("Starting resizing")
     shardManager.mutex.Lock()
+    fmt.Println("resize worker lock acquired")
 
-    newShards := shardManager
+    // newShards := shardManager
 
     lenn := len(shardManager.Shards)
     for i := len(shardManager.Shards); i < lenn + int(addSize) ; i++ {
         // newShards.Shard[i] = getNewShard(ShardSize)
         fmt.Println("burrrrrrr")
-        newShards.Shards = append(newShards.Shards,getNewShard(ShardSize))
+        shardManager.Shards = append(shardManager.Shards,getNewShard(ShardSize))
     }
 
-    shardManager = newShards
-    shardManager.mutex.Unlock()
+    // shardManager = newShards
 
     fmt.Println("resizing done")
     curShardManagerSize <- curSize
     fmt.Println("curshardmanagersize updated")
     ShardManagerSizeLim <- curShardManagerSizeLim
     fmt.Println("end of resizing function")
-
-    
+    shardManager.mutex.Unlock()
+    fmt.Println("resize worker lock released")   
 }
 
 func resizeShardManager(){
@@ -199,13 +199,19 @@ func _setKey(key string, value string) {
     // Lock shardManager to ensure thread safety for adding shards
     // fmt.Println("before locking")
 
+    // TODO: we can't acquite lock here at some times for some reason, why ?
+
+    fmt.Println("trying to acquire lock to set key")
+
     shardManager.mutex.Lock()
 
-    fmt.Println("locked now")
+    fmt.Println("set worker locked acquired")
 
     fmt.Println(shardManager.Shards)
 
     if shardNumber >= int32(len(shardManager.Shards)) {
+        // TODO: this shit is getting triggered!!!
+
         // this is not good, we make it happen on its own!!
         fmt.Println("help me dadddy, I feel bad about this")
         // go resizeShardManager()
@@ -226,7 +232,9 @@ func _setKey(key string, value string) {
     }
 
     shardManager.mutex.Unlock()
-    fmt.Println("Unlocked now")
+    fmt.Println("set worker locked released")
+
+    // fmt.Println("Unlocked now")
 }
 
 func _getKey(key string) (string, bool) {

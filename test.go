@@ -1,79 +1,111 @@
 package main
 
 import (
+    "bufio"
     "fmt"
-	"sync"
-	"runtime"
+    "net"
+    "strings"
+    "sync"
+    "time"
 )
 
-func lmao(waitgroup *sync.WaitGroup,chn *chan string) {
-	fmt.Println("One started")
-	cnt := 0
-	for i:= 1; i < 1000000000; i++{
-		// fmt.Println("lmao")
-		cnt++
-	}
-	*chn <- "lmao"
-	waitgroup.Done()
-}
+func main() {
+    // Number of keys to test
+    numKeys := 10
 
-func bruh(waitgroup *sync.WaitGroup,chn *chan string) {
-	fmt.Println("two started")
-	cnt := 0
-	for i:= 1; i < 1000000000; i++{
-		// fmt.Println("lmao")
-		cnt++
-	}
-	*chn <- "bruh"
-	waitgroup.Done()
-}
+    // WaitGroup to wait for all goroutines to finish
+    var wg sync.WaitGroup
 
-func lmao_wut(waitgroup *sync.WaitGroup,chn *chan string) {
-	for i:= 1; i < 1000000; i++{
-		fmt.Println("lmao")
-	}
-	*chn <- "lmao_wut bro"
-	waitgroup.Done()
-}
+    // Slice to store response times
+    var responseTimes []time.Duration
+    var responseTimesMutex sync.Mutex
 
-func bruh_wut(waitgroup *sync.WaitGroup,chn *chan string) {
-	for i:= 1; i < 1000000; i++{
-		fmt.Println("bruh")
-	}
-	*chn <- "you serious ?"
-	waitgroup.Done()
-}
+    // Function to perform SET and GET operations
+    performTest := func(key, value string) {
+        defer wg.Done()
 
-func main(){
-	// ..
-	runtime.GOMAXPROCS(runtime.NumCPU())
-	var wg sync.WaitGroup
+        // Connect to the server
+        conn, err := net.Dial("tcp", "localhost:8080")
+        if err != nil {
+            fmt.Println("Error connecting to server:", err)
+            return
+        }
+        defer conn.Close()
 
-	chn := make(chan string)
+        reader := bufio.NewReader(conn)
 
-	wg.Add(2)
-	// these lil shits execute in random order, lmao
-	go lmao(&wg,&chn)
+        // Send SET command and wait for response
+        setCommand := fmt.Sprintf("SET %s %s\n", key, value)
+        startTime := time.Now()
+        _, err = conn.Write([]byte(setCommand))
+        if err != nil {
+            fmt.Println("Error sending SET command:", err)
+            return
+        }
 
-	go bruh(&wg,&chn)
+        // Wait for server response for SET
+        setResponse, err := reader.ReadString('\n')
+        if err != nil {
+            fmt.Println("Error reading SET response:", err)
+            return
+        }
+        setDuration := time.Since(startTime)
 
-	one, two := <-chn,<-chn
+        // Record response time
+        responseTimesMutex.Lock()
+        responseTimes = append(responseTimes, setDuration)
+        responseTimesMutex.Unlock()
 
-	
-	fmt.Println(one,two)
-	wg.Wait()
+        // Send GET command and wait for response
+        getCommand := fmt.Sprintf("GET %s\n", key)
+        startTime = time.Now()
+        _, err = conn.Write([]byte(getCommand))
+        if err != nil {
+            fmt.Println("Error sending GET command:", err)
+            return
+        }
 
-	// now we take those shits and add something else to them
-	// ----------------------------------------------------
+        // Wait for server response for GET
+        getResponse, err := reader.ReadString('\n')
+        if err != nil {
+            fmt.Println("Error reading GET response:", err)
+            return
+        }
+        getDuration := time.Since(startTime)
 
-	wg.Add(2)
+        // Record response time
+        responseTimesMutex.Lock()
+        responseTimes = append(responseTimes, getDuration)
+        responseTimesMutex.Unlock()
 
-	// fmt.Println("starting phase 2")
+        // Trim newline characters from responses
+        setResponse = strings.TrimSpace(setResponse)
+        getResponse = strings.TrimSpace(getResponse)
 
-	// go lmao_wut(&wg,&chn)
-	// go bruh_wut(&wg,&chn)
+        // Print responses and times
+        fmt.Printf("SET Response for key '%s': %s (Time: %v)\n", key, setResponse, setDuration)
+        fmt.Printf("GET Response for key '%s': %s (Time: %v)\n", key, getResponse, getDuration)
+    }
 
-	// omg, hewwo:= <-chn,<-chn
+    // Start multiple goroutines to perform tests concurrently
+    for i := 0; i < numKeys; i++ {
+        wg.Add(1)
+        key := fmt.Sprintf("key%d", i)
+        value := fmt.Sprintf("value%d", i)
+        go performTest(key, value)
+    }
 
-	// fmt.Println(omg,hewwo)
+    // Wait for all goroutines to finish
+    wg.Wait()
+
+    // Calculate average response time
+    var totalDuration time.Duration
+    for _, duration := range responseTimes {
+		fmt.Println("time taken",duration)
+        totalDuration += duration
+    }
+    averageDuration := totalDuration / time.Duration(len(responseTimes))
+
+    fmt.Printf("\nTotal Requests: %d\n", len(responseTimes))
+    fmt.Printf("Average Response Time: %v\n", averageDuration)
 }
