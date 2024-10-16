@@ -47,8 +47,9 @@ func _readValidResponse(reader *bufio.Reader) (string, error) {
 func main() {
 	// Configuration
 	serverAddress := "localhost:8080" // Replace with your server's address and port
-	numConnections := 10              // Number of concurrent connections
-	numKeys := 10                  // Total number of unique keys
+
+	numConnections := 100             // Number of concurrent connections
+	numKeys := 500      	  // Total number of unique keys
 
 	// Validate that numKeys is divisible by numConnections for even distribution
 	if numKeys%numConnections != 0 {

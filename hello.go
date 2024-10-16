@@ -4,7 +4,7 @@ import (
     "fmt"
     "log"
     "net"
-    "time"
+    // "time"
     "sync/atomic"
     "sync"
     "strings"
@@ -60,7 +60,7 @@ type Shard struct {
 }
 
 type KeyManager struct {
-    Keys  map[string]int32
+    Keys  sync.Map
     mutex sync.Mutex // for adding new keys
 }
 
@@ -70,19 +70,17 @@ type ShardManager struct {
 }
 
 // Hyperparameter
-var ShardSize int32 = 4
+var ShardSize int32 = 5
 
 // Global variables
 var keyManager = KeyManager{
-    Keys: make(map[string]int32),
+    Keys: sync.Map{},
 }
 
 var shardManager = ShardManager{
     Shards: make([]*Shard, 1),
 }
 
-var connectionChan = make(chan net.Conn)
-var messageChan = make(chan Message)
 var ShardManagerSizeLim = make(chan int32,1)
 var curShardManagerSize = make(chan int32,1)
 
@@ -137,7 +135,9 @@ func resizeShardManager(){
         // fmt.Println("start of resizing function")
         // fmt.Println("current size is ",curSize)
 
-        if curSize == curShardManagerSizeLim {
+        buffer := int32(50) // TODO: this is bullshit, don't rely on this
+
+        if curSize >= curShardManagerSizeLim - buffer {
             fmt.Println("triggering resizing")
             addSize := curShardManagerSizeLim
             curShardManagerSizeLim *= 2
@@ -161,15 +161,36 @@ func _setKey(key string, value string) {
     // Lock keyManager to ensure thread safety for adding keys
 
     // fmt.Println("inside the set function")
-    keyManager.mutex.Lock()
-    idx, exists := keyManager.Keys[key]
-    if !exists {
-        fmt.Println("not exists here!!")
+    // keyManager.mutex.Lock()
+    // idx, exists := keyManager.Keys[key]
+    // if !exists {
+    //     fmt.Println("not exists here!!")
+        // val := atomic.AddInt32(&nextIdx, 1)
+        // // keyManager.Keys[key] = val
+        // keyManager.Keys.Store(key, val)
+        // idx = val
+    // }
+    // keyManager.mutex.Unlock()
+
+    idx := int32(6969)
+
+    if value, ok := keyManager.Keys.Load(key); ok {
+        if intValue, ok := value.(int32); ok { // Type assertion to int
+            idx = int32(intValue)
+            // fmt.Println("Loaded:", intValue) // Uncomment to print the loaded value
+        } else {
+            fmt.Println("NOOOOOOOOOOOOOOOOOOOOOO -x-x-x-x-x-x-x-x-x-x-xx-x-x-x-x-x-x--x",value,"-->")
+        }
+        // idx = value
+        // fmt.Println("Loaded:", value) // Will print: Loaded: 42
+    } else {
+        // fmt.Println("Key does not exist.")
         val := atomic.AddInt32(&nextIdx, 1)
-        keyManager.Keys[key] = val
+        // keyManager.Keys[key] = val
+        // keyManager.Keys.Store(key, val)
+        keyManager.Keys.Store(key, val)
         idx = val
     }
-    keyManager.mutex.Unlock()
 
     shardNumber := idx / ShardSize
     localShardIndex := idx%ShardSize 
@@ -203,6 +224,7 @@ func _setKey(key string, value string) {
 
     fmt.Println("trying to acquire lock to set key")
 
+
     shardManager.mutex.Lock()
 
     fmt.Println("set worker locked acquired")
@@ -210,10 +232,10 @@ func _setKey(key string, value string) {
     fmt.Println(shardManager.Shards)
 
     if shardNumber >= int32(len(shardManager.Shards)) {
-        // TODO: this shit is getting triggered!!!
+        //TODO: we have accidentaly stumbled upon this thing first before the resize worker could trigger, don't worry, just manually trigger the resize worker or maybe skip the iteration so that the worker can get triggered (bad idea) 
 
         // this is not good, we make it happen on its own!!
-        fmt.Println("help me dadddy, I feel bad about this")
+        // fmt.Println("help me dadddy, I feel bad about this")
         // go resizeShardManager()
         // os.Exit(1)
         // fmt.Errorf("nooooo senpaiiiiiiiiii, this is notttttt goooood")
@@ -239,8 +261,26 @@ func _setKey(key string, value string) {
 
 func _getKey(key string) (string, bool) {
     // Read from keyManager without locking
-    idx, exists := keyManager.Keys[key]
-    if !exists {
+
+    // idx, exists := keyManager.Keys[key]
+    // if !exists {
+    //     return "NaN", false
+    // }
+
+    idx := int32(6969)
+
+    if value, ok := keyManager.Keys.Load(key); ok {
+        if intValue, ok := value.(int32); ok { // Type assertion to int
+            idx = int32(intValue)
+            // fmt.Println("Loaded:", intValue) // Uncomment to print the loaded value
+        } else {
+
+            fmt.Println("NOOOOOOOOOOOOOOOOOOOOOO -x-x-x-x-x-x-x-x-x-x-xx-x-x-x-x-x-x--x",value,"-->")
+            // fmt.Println("NOOOOOOOOOOOOOOOOOOOOOO -x-x-x-x-x-x-x-x-x-x-xx-x-x-x-x-x-x--x")
+        }
+    } else {
+        // fmt.Println("Key does not exist.")
+        // keyManager.Keys.Store(key, val)
         return "NaN", false
     }
 
@@ -268,80 +308,55 @@ func _getKey(key string) (string, bool) {
     return "NaN", false
 }
 
-func listener(){
-    // always listening
-    fmt.Println("listener started")
-
-    var connections []net.Conn
-
-    for {
-        select{
-        case conn := <- connectionChan:
-            connections = append(connections,conn)
-
-        case msg := <- messageChan:
-            for _,conn:= range connections{
-                _, err := conn.Write([]byte(fmt.Sprint(msg.data))) // Send message over the connection
-
-                if err != nil {
-                    log.Fatal("failed to echo message:" ,err)
-                    // Handle error (e.g., log it, remove the connection, etc.)
-                } else{
-                    // fmt.Println("echoed message: ",msg.data)
-                }
-            }
-        }
-    }
-}
-
 func handleConnection(conn net.Conn) {
     fmt.Println("Client connected")
     buffer := make([]byte, 1024)
-    connectionChan <- conn
-
     for {
+        fmt.Println("START")
         // Read data from the connection
         length, err := conn.Read(buffer)
+        
         if err != nil {
             log.Fatal(err)
             return
         }
+
+        fmt.Println("WE HAVE SOMETHING",length)
 
         data := string(buffer[:length])
 
         stringData := strings.Fields(data)
 
         fmt.Println("we have a new message",data)
-        // output := "NaN" 
 
         if stringData[0] == "SET"{
-            // fmt.Println("Trying to set shit")
             _setKey(stringData[1],stringData[2])
+            _, err := conn.Write([]byte(fmt.Sprint("SET done\n"))) // Send message over the connection
+
+            if err != nil {
+                log.Println("failed to reply message:" ,err)
+                // Handle error (e.g., log it, remove the connection, etc.)
+            } else{
+                fmt.Println("replied message: ","output")
+            }
         } else{
+            // fmt.Println("Trying to get shit")
             output , exists := _getKey(stringData[1])
 
             fmt.Println(exists)
 
-            _, err := conn.Write([]byte(fmt.Sprint(output))) // Send message over the connection
+            _, err := conn.Write([]byte(fmt.Sprint(output+"\n"))) // Send message over the connection
 
             if err != nil {
-                log.Fatal("failed to reply message:" ,err)
+                log.Println("failed to reply message:" ,err)
                 // Handle error (e.g., log it, remove the connection, etc.)
             } else{
                 fmt.Println("replied message: ",output)
             }
         }
-
-        message := Message {
-            data: data,
-            timestamp: time.Now().Unix(),
-        }
-
-        messageChan <- message
-        
-        fmt.Println("received message: ",message)
+        fmt.Println("END")
     }
-    conn.Close()
+    // conn.Close()
 }
 
 func main() {
@@ -353,7 +368,7 @@ func main() {
         log.Fatal(err)
     }
 
-    go listener()
+    // go listener()
     go resizeShardManager()
 
     
