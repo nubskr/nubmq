@@ -13,6 +13,9 @@ import (
 	"sort"
 )
 
+var numConnections = 50             // Number of concurrent connections
+var numKeys = 50000      	  // Total number of unique keys
+
 func whatever(shit string) string {
 	if shit == "NaN" {
 		fmt.Println("your server is sending bullshit, check it dumbass")
@@ -97,6 +100,7 @@ func writeDurationsToCSV(filename string, durations []time.Duration) error {
     writer.Write([]string{"Rank", "Duration_ms"})
 
     // Write data
+
     for i, duration := range durations {
         durationInMs := float64(duration.Nanoseconds()) / 1e6 // Convert nanoseconds to milliseconds
         record := []string{
@@ -107,6 +111,7 @@ func writeDurationsToCSV(filename string, durations []time.Duration) error {
             return err
         }
     }
+
     return nil
 }
 
@@ -114,9 +119,6 @@ func writeDurationsToCSV(filename string, durations []time.Duration) error {
 func main() {
 	// Configuration
 	serverAddress := "localhost:8080" // Replace with your server's address and port
-
-	numConnections := 50             // Number of concurrent connections
-	numKeys := 100000      	  // Total number of unique keys
 
 	// Validate that numKeys is divisible by numConnections for even distribution
 	if numKeys%numConnections != 0 {
@@ -368,7 +370,11 @@ func main() {
 	
 	fmt.Printf("Average SET Response Time: %v\n", avgSetTime)
 	fmt.Printf("Top %d Max SET Response Times:\n", len(topSetDurations))
+
+	// var sumShit float64 = 0.0
+
 	for i := len(topSetDurations) - 1; i >= 0; i-- {
+		// sumShit += float64(topSetDurations[i])
 		// fmt.Printf("%v\n", topSetDurations[i])
 	}
 
