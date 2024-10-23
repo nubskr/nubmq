@@ -4,8 +4,9 @@ import (
     "fmt"
     "log"
     "net"
-    // "time"
+    "time"
     "sync/atomic"
+    "os"
     "sync"
     "strings"
     "runtime"
@@ -24,16 +25,6 @@ how does this changes reads ?
 make copy in background and just change the pointer to shardmanager when its done, nothing is darn blocked then
 (the memory usage doubles for a second there, but then the garbage collector does its job)
 
-Updated scene:
-
-    Shard:
-        []*ValueObject
-        shard_size int32
-
-    shardmanager: 
-        []*Shard
-        shardmanager_size int32
-        current_
 */
 
 /*
@@ -41,6 +32,21 @@ TODO:
 - expiry for a key ? (just make another go routine which cleans shit ? no please, lmao)
 
 - Key eviction (why we need this: what if shit gets full, how will we deal with it then ? increase the darn memory ffs, what else would you do)
+*/
+
+
+/*
+# Dynamic buffer changes:
+
+keep track of last x growth values, keep x configurable
+
+update buffer as the moving average of those x values, keep a margin of safety as well
+
+velocity -> how much load expected in the next moment
+
+f(velocity) = velocity * safetyFactor ; safetyFactor > 1 , convert shits to float to not get fucked 
+
+how to store those moving averages without storing those darn last x values
 
 */
 
@@ -61,7 +67,7 @@ type Shard struct {
 
 type KeyManager struct {
     Keys  sync.Map
-    mutex sync.Mutex // for adding new keys
+    // mutex sync.Mutex // for adding new keys
 }
 
 type ShardManager struct {
@@ -71,6 +77,13 @@ type ShardManager struct {
 
 // Hyperparameter
 var ShardSize int32 = 5
+var movingAverageXsize int32 = 4
+var movingAverageArrayIdx int32 = 0 // update this shit atomically
+var bufferSafetyFactor int32 = 2
+
+var shardManagerBuffer int32 = 10
+
+var movingAverageArray = make([]int32, movingAverageXsize)
 
 // Global variables
 var keyManager = KeyManager{
@@ -81,13 +94,72 @@ var shardManager = ShardManager{
     Shards: make([]*Shard, 1),
 }
 
-var ShardManagerSizeLim = make(chan int32,1)
-var curShardManagerSize = make(chan int32,1)
+var ShardManagerSizeLim int32 = 1
+var curShardManagerSize int32 = 1
 
 var nextIdx int32 = -1
+var wg sync.WaitGroup
+var dynamicBufferReshaperWG sync.WaitGroup
+
+var curSetCnt int32 = 0
+var lastSetCnt int32 = 0
+
+func dynamicBufferReshaperWorker() {
+    fmt.Println("Buffer reshape in progress===========================================================")
+    // get the average of all the shits in movingAverageArray and then update the fucking buffer
+    
+    var sum int32 = 0
+
+    for _,i := range(movingAverageArray) {
+        sum += i
+    }
+
+    movingAvg := sum / movingAverageXsize
+
+    newBuffer := movingAvg * bufferSafetyFactor
+
+    if newBuffer == 0 {
+        // can't be this low man, lmao
+        newBuffer = 1
+    }
+
+    atomic.SwapInt32(&shardManagerBuffer,newBuffer)
+
+    dynamicBufferReshaperWG.Done() 
+}
+
+/*
+buffer is being updated in real time every second
+*/
+func dynamicBufferReshaper() {
+    for {
+        // time.Sleep(1 * time.Second)
+        time.Sleep(50 * time.Millisecond)
+
+        curVelocity := curSetCnt - lastSetCnt
+
+        fmt.Println("current velocity is",curSetCnt - lastSetCnt)
+
+        if curVelocity != 0 {
+            fmt.Println(curVelocity)
+        }
+        
+        movingAverageArray[movingAverageArrayIdx] = curVelocity
+
+        newMovingAverageArrayIdx := (movingAverageArrayIdx + 1) % movingAverageXsize
+
+        atomic.SwapInt32(&movingAverageArrayIdx,newMovingAverageArrayIdx)
+        atomic.SwapInt32(&lastSetCnt,curSetCnt)
+
+        dynamicBufferReshaperWG.Add(1)
+        
+        go dynamicBufferReshaperWorker()
+        
+        dynamicBufferReshaperWG.Wait()
+    }
+}
 
 func getNewShard(sz int32) *Shard {
-    fmt.Println("making a new shard of size: ",sz)
     return &Shard{
         data: make([]*ValueData, sz, ShardSize),
     }
@@ -100,130 +172,115 @@ func getNewValueData(value string) *ValueData{
 }
 
 func resizeShardManagerWorker(addSize int32,curSize int32,curShardManagerSizeLim int32){
-    fmt.Println("Starting resizing")
+    // put the darn mutex as locked
     shardManager.mutex.Lock()
-    fmt.Println("resize worker lock acquired")
 
-    // newShards := shardManager
-
-    lenn := len(shardManager.Shards)
-    for i := len(shardManager.Shards); i < lenn + int(addSize) ; i++ {
-        // newShards.Shard[i] = getNewShard(ShardSize)
-        fmt.Println("burrrrrrr")
-        shardManager.Shards = append(shardManager.Shards,getNewShard(ShardSize))
+    // check again if we still need to resize bro
+    if int32(len(shardManager.Shards)) >= curShardManagerSizeLim {
+        fmt.Println("0vo, my bad, sowwie")
+        shardManager.mutex.Unlock()
+        // fmt.Println("shit out of sync")
+        // os.Exit(1)
+        return
     }
 
-    // shardManager = newShards
+    lenn := len(shardManager.Shards)
+
+    for i := len(shardManager.Shards); i < lenn + int(addSize) ; i++ {
+        shardManager.Shards = append(shardManager.Shards,getNewShard(ShardSize)) // TODO: using append here might not be the best thing to do!
+    }
 
     fmt.Println("resizing done")
-    curShardManagerSize <- curSize
+    // curShardManagerSize <- curSize
+
+    atomic.SwapInt32(&curShardManagerSize, curSize)
+
     fmt.Println("curshardmanagersize updated")
-    ShardManagerSizeLim <- curShardManagerSizeLim
+    // ShardManagerSizeLim <- curShardManagerSizeLim
+
+    atomic.SwapInt32(&ShardManagerSizeLim, curShardManagerSizeLim)
+
     fmt.Println("end of resizing function")
     shardManager.mutex.Unlock()
-    fmt.Println("resize worker lock released")   
+    fmt.Println("resize worker lock released")  
+    wg.Done() 
 }
 
 func resizeShardManager(){
-    for {
-        // fmt.Println(">-==-==-==-==-==-==-==-==-==-==-==-==-==-==-==-==-<")
+    for {        
+        var curShardManagerSizeLim int32 = atomic.LoadInt32(&ShardManagerSizeLim)
         
-        curShardManagerSizeLim := <- ShardManagerSizeLim
-        
-        curSize := <- curShardManagerSize
+    
+        var curSize int32 = atomic.LoadInt32(&curShardManagerSize)
 
-        // fmt.Println("start of resizing function")
-        // fmt.Println("current size is ",curSize)
-
-        buffer := int32(50) // TODO: this is bullshit, don't rely on this
+        buffer := shardManagerBuffer
 
         if curSize >= curShardManagerSizeLim - buffer {
-            fmt.Println("triggering resizing")
             addSize := curShardManagerSizeLim
             curShardManagerSizeLim *= 2
+            wg.Add(1)
             go resizeShardManagerWorker(addSize,curSize,curShardManagerSizeLim)
-            
-            // block here untill the above go routine completes
-            // fmt.Println("resizing triggered")
+            wg.Wait()
         } else {
-            // fmt.Println("Nothin to do here")
-            curShardManagerSize <- curSize // blocked untill someone listens to this shit
-            ShardManagerSizeLim <- curShardManagerSizeLim
+            
+            // curShardManagerSize <- curSize
+            atomic.SwapInt32(&curShardManagerSize,curSize)
+            // ShardManagerSizeLim <- curShardManagerSizeLim
+            atomic.SwapInt32(&ShardManagerSizeLim,curShardManagerSizeLim)
         }
     }
 }
 
 func _setKey(key string, value string) {
-
     // this thing accesses the whole darn shard manager and puts a lock on it, which is not good, very very bad
     // we are accessing the length of the number of shards and that is not what we want, we need another way to access shit man, this is bad, very very bad
     
-    // Lock keyManager to ensure thread safety for adding keys
-
-    // fmt.Println("inside the set function")
-    // keyManager.mutex.Lock()
-    // idx, exists := keyManager.Keys[key]
-    // if !exists {
-    //     fmt.Println("not exists here!!")
-        // val := atomic.AddInt32(&nextIdx, 1)
-        // // keyManager.Keys[key] = val
-        // keyManager.Keys.Store(key, val)
-        // idx = val
-    // }
-    // keyManager.mutex.Unlock()
-
-    idx := int32(6969)
+    idx := int32(696969696)
 
     if value, ok := keyManager.Keys.Load(key); ok {
         if intValue, ok := value.(int32); ok { // Type assertion to int
             idx = int32(intValue)
-            // fmt.Println("Loaded:", intValue) // Uncomment to print the loaded value
         } else {
-            fmt.Println("NOOOOOOOOOOOOOOOOOOOOOO -x-x-x-x-x-x-x-x-x-x-xx-x-x-x-x-x-x--x",value,"-->")
+            fmt.Println("NOOOOOOOOOOOOOOOOOOOOOO set-x-x-x-x-x-x-x-x-x-x-xx-x-x-x-x-x-x--x",value,"-->")
+            os.Exit(1)
         }
-        // idx = value
-        // fmt.Println("Loaded:", value) // Will print: Loaded: 42
     } else {
-        // fmt.Println("Key does not exist.")
         val := atomic.AddInt32(&nextIdx, 1)
-        // keyManager.Keys[key] = val
-        // keyManager.Keys.Store(key, val)
         keyManager.Keys.Store(key, val)
         idx = val
     }
 
+    if idx == 696969696 {
+        fmt.Println("trying to set non existing shit")
+        os.Exit(1)
+    }
+
     shardNumber := idx / ShardSize
     localShardIndex := idx%ShardSize 
-    // 0,1,2,3,4,0,1,2,3,4....
 
     if localShardIndex == 0 {
         // at the start to each shard, just increase the current size 
 
+        // start0,start1 and start2 need to happen in one go
         fmt.Println("start0")
 
+        // tmp := <- curShardManagerSize
         
-        tmp := <- curShardManagerSize
-        
-        fmt.Println("start1")
-        
-        // update the channel
+        // fmt.Println("start1")
 
-        curShardManagerSize <- tmp + 1
-        
-        // } we want this encapsulated shit to happen exactly at once!!
+
+        atomic.AddInt32(&curShardManagerSize, 1)
+
         fmt.Println("start2")
     }
-    fmt.Println("end")
 
     fmt.Println("setting key",key,"at",idx,"at shard number",shardNumber,"at local index",localShardIndex)
     
     // Lock shardManager to ensure thread safety for adding shards
-    // fmt.Println("before locking")
 
     // TODO: we can't acquite lock here at some times for some reason, why ?
 
     fmt.Println("trying to acquire lock to set key")
-
 
     shardManager.mutex.Lock()
 
@@ -232,19 +289,37 @@ func _setKey(key string, value string) {
     fmt.Println(shardManager.Shards)
 
     if shardNumber >= int32(len(shardManager.Shards)) {
-        //TODO: we have accidentaly stumbled upon this thing first before the resize worker could trigger, don't worry, just manually trigger the resize worker or maybe skip the iteration so that the worker can get triggered (bad idea) 
-
-        // this is not good, we make it happen on its own!!
-        // fmt.Println("help me dadddy, I feel bad about this")
-        // go resizeShardManager()
+        fmt.Println("help me dadddy, I feel bad about this")
         // os.Exit(1)
-        // fmt.Errorf("nooooo senpaiiiiiiiiii, this is notttttt goooood")
+
+        // this shit will have terrible performance lmao
+
+        var addSize int32 = ShardManagerSizeLim
+        lenn := len(shardManager.Shards)
+
+
+        for i := len(shardManager.Shards); i < lenn + int(addSize) ; i++ {
+            fmt.Println("burrrrr")
+            shardManager.Shards = append(shardManager.Shards,getNewShard(ShardSize)) // TODO: using append here might not be the best thing to do!
+        }
+
+
+        atomic.SwapInt32(&curShardManagerSize, int32(len(shardManager.Shards)))
+
+        atomic.SwapInt32(&ShardManagerSizeLim, ShardManagerSizeLim * 2)
+
+        // shardManager.mutex.Unlock()
+        // go _setKey(key,value)
+        // fmt.Println("trying") 
+        // return
+
+        // trigger resize manually and wait for it to complete!!!!!!!!, or...... we can trigger the resize and call the _setkey again from here
+
+        // trigger the resize.... wait for it to be over
     }
 
-    fmt.Println("before")
     shard := shardManager.Shards[shardNumber]
     newVal := getNewValueData(value)
-    fmt.Println("after")
 
     if int32(len(shard.data)) > localShardIndex{
         fmt.Println("hi mom",shard.data)
@@ -254,57 +329,48 @@ func _setKey(key string, value string) {
     }
 
     shardManager.mutex.Unlock()
-    fmt.Println("set worker locked released")
 
-    // fmt.Println("Unlocked now")
 }
 
 func _getKey(key string) (string, bool) {
-    // Read from keyManager without locking
 
-    // idx, exists := keyManager.Keys[key]
-    // if !exists {
-    //     return "NaN", false
-    // }
-
-    idx := int32(6969)
+    idx := int32(696969696) // TODO: remove this shit
 
     if value, ok := keyManager.Keys.Load(key); ok {
-        if intValue, ok := value.(int32); ok { // Type assertion to int
+        if intValue, ok := value.(int32); ok {
             idx = int32(intValue)
-            // fmt.Println("Loaded:", intValue) // Uncomment to print the loaded value
         } else {
 
-            fmt.Println("NOOOOOOOOOOOOOOOOOOOOOO -x-x-x-x-x-x-x-x-x-x-xx-x-x-x-x-x-x--x",value,"-->")
-            // fmt.Println("NOOOOOOOOOOOOOOOOOOOOOO -x-x-x-x-x-x-x-x-x-x-xx-x-x-x-x-x-x--x")
+            fmt.Println("NOOOOOOOOOOOOOOOOOOOOOO get-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x",value,"-->")
+            os.Exit(1)
         }
     } else {
-        // fmt.Println("Key does not exist.")
-        // keyManager.Keys.Store(key, val)
         return "NaN", false
+    }
+
+    if idx == 696969696 {
+        fmt.Println("trying to get non existing shit")
+        os.Exit(1)
     }
 
     shardNumber := idx / ShardSize
 
     shardManager.mutex.Lock()
-    defer shardManager.mutex.Unlock()
 
     if shardNumber >= int32(len(shardManager.Shards)) {
-        // fmt.Println("first off")
+        shardManager.mutex.Unlock()
         return "", false
     }
 
     shard := shardManager.Shards[shardNumber]
     localShardIndex := idx % ShardSize
     
-    // fmt.Println(localShardIndex,*shard.data[1])
-
     if localShardIndex < int32(len(shard.data)) {
+        shardManager.mutex.Unlock()
         return (shard.data[localShardIndex]).data, true
     }
 
-    // fmt.Println("second off")
-    // shard does not exist, should never reach here!!!!
+    shardManager.mutex.Unlock()
     return "NaN", false
 }
 
@@ -312,55 +378,49 @@ func handleConnection(conn net.Conn) {
     fmt.Println("Client connected")
     buffer := make([]byte, 1024)
     for {
-        fmt.Println("START")
-        // Read data from the connection
         length, err := conn.Read(buffer)
         
         if err != nil {
-            log.Fatal(err)
+            fmt.Println("an error occured while reading message:",err)
             return
         }
-
-        fmt.Println("WE HAVE SOMETHING",length)
 
         data := string(buffer[:length])
 
         stringData := strings.Fields(data)
 
-        fmt.Println("we have a new message",data)
-
         if stringData[0] == "SET"{
+            atomic.AddInt32(&curSetCnt, 1)
             _setKey(stringData[1],stringData[2])
-            _, err := conn.Write([]byte(fmt.Sprint("SET done\n"))) // Send message over the connection
+            _, err := conn.Write([]byte(fmt.Sprint("SET done\n")))
 
             if err != nil {
                 log.Println("failed to reply message:" ,err)
-                // Handle error (e.g., log it, remove the connection, etc.)
             } else{
-                fmt.Println("replied message: ","output")
             }
         } else{
-            // fmt.Println("Trying to get shit")
-            output , exists := _getKey(stringData[1])
+            output ,exists := _getKey(stringData[1])
 
-            fmt.Println(exists)
+            if exists {
 
+            }
             _, err := conn.Write([]byte(fmt.Sprint(output+"\n"))) // Send message over the connection
 
             if err != nil {
-                log.Println("failed to reply message:" ,err)
-                // Handle error (e.g., log it, remove the connection, etc.)
             } else{
-                fmt.Println("replied message: ",output)
             }
         }
-        fmt.Println("END")
     }
-    // conn.Close()
 }
 
 func main() {
-    runtime.GOMAXPROCS(runtime.NumCPU())
+    fasttttt := true
+    
+    // fasttttt = false
+
+    if fasttttt {
+        runtime.GOMAXPROCS(runtime.NumCPU())
+    }
 
     ln, err := net.Listen("tcp", ":8080")
 
@@ -368,12 +428,12 @@ func main() {
         log.Fatal(err)
     }
 
-    // go listener()
+    go dynamicBufferReshaper()
     go resizeShardManager()
 
     
-    ShardManagerSizeLim <- 1
-    curShardManagerSize <- 1
+    // ShardManagerSizeLim <- 1
+    // curShardManagerSize <- 1
 
     shardManager.Shards[0] = getNewShard(ShardSize)
 
@@ -381,7 +441,7 @@ func main() {
 	fmt.Println("Server listening on :8080")
 
     for {
-        // Accept a connection
+        // Accept connection
         conn, err := ln.Accept()
         if err != nil {
             log.Println(err)

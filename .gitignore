@@ -1,3 +1,6 @@
 go
 hello
 pkg
+venv
+*.png
+*.csv
