@@ -4,52 +4,14 @@ import (
     "fmt"
     "log"
     "net"
-    "time"
     "sync/atomic"
     "os"
+	"unsafe"
     "sync"
+	"time"
     "strings"
-    "unsafe"
     "runtime"
 )
-
-/*
-TODO: 
-
-- dynamic shard initializations (double when full) ; O(1) asymptomatic time in the end
-(put a mutex lock only while it is being copied, make sure no changes occur!!!)
-
-writes to new shards are blocked while resizing is happening
-
-how does this changes reads ?
-
-make copy in background and just change the pointer to shardmanager when its done, nothing is darn blocked then
-(the memory usage doubles for a second there, but then the garbage collector does its job)
-
-*/
-
-/*
-TODO:
-- expiry for a key ? (just make another go routine which cleans shit ? no please, lmao)
-
-- Key eviction (why we need this: what if shit gets full, how will we deal with it then ? increase the darn memory ffs, what else would you do)
-*/
-
-
-/*
-# Dynamic buffer changes:
-
-keep track of last x growth values, keep x configurable
-
-update buffer as the moving average of those x values, keep a margin of safety as well
-
-velocity -> how much load expected in the next moment
-
-f(velocity) = velocity * safetyFactor ; safetyFactor > 1 , convert shits to float to not get fucked 
-
-how to store those moving averages without storing those darn last x values
-
-*/
 
 type Message struct {
 	data string
@@ -76,8 +38,7 @@ type ShardManager struct {
     mutex  sync.RWMutex 
 }
 
-// Hyperparameter
-var ShardSize int32 = 5000
+var ShardSize int32 = 500
 var movingAverageXsize int32 = 4
 var movingAverageArrayIdx int32 = 0 // update this shit atomically
 var bufferSafetyFactor int32 = 100
@@ -86,13 +47,15 @@ var shardManagerBuffer int32 = 100
 
 var movingAverageArray = make([]int32, movingAverageXsize)
 
+
 // Global variables
 var keyManager = KeyManager{
     Keys: sync.Map{},
 }
 
+// init a thousand shards
 var shardManager = ShardManager{
-    Shards: make([]*Shard, 1000),
+    Shards: make([]*Shard, 1),
 }
 
 var ShardManagerSizeLim int32 = 1
@@ -104,6 +67,7 @@ var dynamicBufferReshaperWG sync.WaitGroup
 
 var curSetCnt int32 = 0
 var lastSetCnt int32 = 0
+
 
 func dynamicBufferReshaperWorker() {
     fmt.Println("Buffer reshape in progress===========================================================")
@@ -135,7 +99,7 @@ buffer is being updated in real time every second
 func dynamicBufferReshaper() {
     for {
         // time.Sleep(1 * time.Second)
-        time.Sleep(5 * time.Millisecond)
+        time.Sleep(20 * time.Millisecond)
 
         curVelocity := curSetCnt - lastSetCnt
 
@@ -160,6 +124,7 @@ func dynamicBufferReshaper() {
     }
 }
 
+
 func getNewShard(sz int32) *Shard {
     return &Shard{
         data: make([]*ValueData, sz, ShardSize),
@@ -172,8 +137,10 @@ func getNewValueData(value string) *ValueData{
     }
 }
 
+
 func resizeShardManagerWorker(addSize int32,curSize int32,curShardManagerSizeLim int32){
     shardManager.mutex.Lock()
+	fmt.Println("resize manager acquired shardmanager lock")
 
     // check again if we still need to resize bro
     if int32(len(shardManager.Shards)) >= curShardManagerSizeLim {
@@ -188,6 +155,9 @@ func resizeShardManagerWorker(addSize int32,curSize int32,curShardManagerSizeLim
         shardManager.Shards = append(shardManager.Shards,getNewShard(ShardSize)) // TODO: using append here might not be the best thing to do!
     }
 
+	fmt.Println("resize manager released shardmanager lock")
+	shardManager.mutex.Unlock()
+
     fmt.Println("resizing done")
     atomic.SwapInt32(&curShardManagerSize, curSize)
 
@@ -196,7 +166,7 @@ func resizeShardManagerWorker(addSize int32,curSize int32,curShardManagerSizeLim
     atomic.SwapInt32(&ShardManagerSizeLim, curShardManagerSizeLim)
 
     fmt.Println("end of resizing function")
-    shardManager.mutex.Unlock()
+
     fmt.Println("resize worker lock released")  
     wg.Done() 
 }
@@ -222,10 +192,7 @@ func resizeShardManager(){
     }
 }
 
-func _setKey(key string, value string) {
-    // this thing accesses the whole darn shard manager and puts a lock on it, which is not good, very very bad
-    // we are accessing the length of the number of shards and that is not what we want, we need another way to access shit man, this is bad, very very bad
-    
+func _setKey(key string, value string) {    
     idx := int32(696969696)
 
     if value, ok := keyManager.Keys.Load(key); ok {
@@ -257,15 +224,13 @@ func _setKey(key string, value string) {
     
     fmt.Println("trying to acquire lock to set key")
 
-    newVal := getNewValueData(value)
+
+	newVal := getNewValueData(value)
+
 
     shardManager.mutex.Lock()
 
-    fmt.Println("set worker locked acquired")
-
-    fmt.Println(shardManager.Shards)
-    
-    if shardNumber >= int32(len(shardManager.Shards)) {
+	if shardNumber >= int32(len(shardManager.Shards)) {
         fmt.Println("help me dadddy, I feel bad about this")
         // os.Exit(1)
         // this shit will have terrible performance lmao
@@ -289,22 +254,20 @@ func _setKey(key string, value string) {
 
     }
 
-    shard := shardManager.Shards[shardNumber]
-    // newVal := getNewValueData(value)
+	// TODO: fix the below shit, it should not be this way
+    // fmt.Println("set worker locked acquired")
 
-    // if int32(len(shard.data)) > localShardIndex{
-    //     fmt.Println("hi mom",shard.data)
-    //     shard.data[localShardIndex] = newVal
-    // } else {
-    //     fmt.Println("oh nu, hewp me daddy")
+    // if shardNumber >= int32(len(shardManager.Shards)) {
+    //     os.Exit(1)
     // }
 
-    shardManager.mutex.Unlock()
+    shard := shardManager.Shards[shardNumber]
+	fmt.Println("set worker lock released")
 
+	shardManager.mutex.Unlock()
 
+	// value is a darn string
 	atomic.SwapPointer((*unsafe.Pointer)(unsafe.Pointer(&shard.data[localShardIndex])), unsafe.Pointer(newVal))
-
-
 }
 
 func _getKey(key string) (string, bool) {
@@ -403,11 +366,11 @@ func main() {
         log.Fatal(err)
     }
 
-    // go dynamicBufferReshaper()
-    // go resizeShardManager()
+	go dynamicBufferReshaper()
+    go resizeShardManager()
 
-    // shardManager.Shards[0] = getNewShard(ShardSize)
-    for i := 0 ; i < 1000 ; i++ {
+	// TODO: remove this shit
+    for i := 0 ; i < 1 ; i++ {
         shardManager.Shards[i] = getNewShard(ShardSize)
     }
 
