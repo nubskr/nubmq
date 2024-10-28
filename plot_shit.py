@@ -15,7 +15,7 @@ def plot_durations(csv_file, title, output_file):
     plt.title(title)
     plt.xlabel('Rank')
     plt.ylabel('Duration (ms)')
-    plt.gca().invert_xaxis()  # Show rank 1 on the left
+    # plt.gca().invert_xaxis()  # Show rank 1 on the left
     plt.grid(True)
     plt.tight_layout()
     

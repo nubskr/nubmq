@@ -13,6 +13,23 @@ import (
     "runtime"
 )
 
+/*
+When we replace the current pointer, start working on the next one, too many edge cases
+
+stuff:_ _ ; next_stuff: _ _ _ _ ; swapPointer(&stuff,next_stuff) ; prepare new next_stuff 
+
+
+what if we are already working when shit gets full ? its pointless to trigger it manually as work is already going on, only option is to pause execution and wait for shit to be over, lmao
+
+we also can't just blindly update the pointer, what if the work is going on during that time, lmao
+
+need to maintain a state, resizing_going_on = t/f 
+
+if resizing_going_on then wait untill its over before updating the darn pointer, should be a simple infinite for loop, lmao
+
+and resizing is not going on, then fucking trigger it, 
+*/
+
 type Message struct {
 	data string
 	timestamp int64
@@ -41,6 +58,7 @@ type ShardManager struct {
 var ShardSize int32 = 500
 var movingAverageXsize int32 = 4
 var movingAverageArrayIdx int32 = 0 // update this shit atomically
+var resizing_going_on int32 = 0 // true or fols , using int just so we can manipulate it atomically
 var bufferSafetyFactor int32 = 100
 
 var shardManagerBuffer int32 = 100
@@ -58,6 +76,10 @@ var shardManager = ShardManager{
     Shards: make([]*Shard, 1),
 }
 
+var nextShardManager = ShardManager{
+    Shards: make([]*Shard, 1),
+}
+
 var ShardManagerSizeLim int32 = 1
 var curShardManagerSize int32 = 1
 
@@ -67,7 +89,6 @@ var dynamicBufferReshaperWG sync.WaitGroup
 
 var curSetCnt int32 = 0
 var lastSetCnt int32 = 0
-
 
 func dynamicBufferReshaperWorker() {
     fmt.Println("Buffer reshape in progress===========================================================")
@@ -124,7 +145,6 @@ func dynamicBufferReshaper() {
     }
 }
 
-
 func getNewShard(sz int32) *Shard {
     return &Shard{
         data: make([]*ValueData, sz, ShardSize),
@@ -136,7 +156,6 @@ func getNewValueData(value string) *ValueData{
         data: value,
     }
 }
-
 
 func resizeShardManagerWorker(addSize int32,curSize int32,curShardManagerSizeLim int32){
     shardManager.mutex.Lock()
@@ -151,12 +170,23 @@ func resizeShardManagerWorker(addSize int32,curSize int32,curShardManagerSizeLim
 
     lenn := len(shardManager.Shards)
 
+    tempShardManager := shardManager // a darn copy of shardManager not a pointer to it
+
+    shardManager.mutex.Unlock()
+
+    atomic.SwapInt32(&resizing_going_on, 1)
+
     for i := lenn; i < lenn + int(addSize) ; i++ {
-        shardManager.Shards = append(shardManager.Shards,getNewShard(ShardSize)) // TODO: using append here might not be the best thing to do!
+        tempShardManager.Shards = append(tempShardManager.Shards,getNewShard(ShardSize)) // TODO: using append here might not be the best thing to do!
     }
 
+    nextShardManager.mutex.Lock()
+    nextShardManager = tempShardManager
+    nextShardManager.mutex.Unlock()
+
+    atomic.SwapInt32(&resizing_going_on, 0)
+
 	fmt.Println("resize manager released shardmanager lock")
-	shardManager.mutex.Unlock()
 
     fmt.Println("resizing done")
     atomic.SwapInt32(&curShardManagerSize, curSize)
@@ -224,26 +254,32 @@ func _setKey(key string, value string) {
     
     fmt.Println("trying to acquire lock to set key")
 
-
 	newVal := getNewValueData(value)
-
 
     shardManager.mutex.Lock()
 
 	if shardNumber >= int32(len(shardManager.Shards)) {
         fmt.Println("help me dadddy, I feel bad about this")
-        // os.Exit(1)
-        // this shit will have terrible performance lmao
 
-        var addSize int32 = ShardManagerSizeLim
-        lenn := len(shardManager.Shards)
+        for !resizing_going_on {
+            // wait untill resizing completes
+            fmt.Println("waiting on resizing")
 
-
-        for i := lenn; i < lenn + int(addSize) ; i++ {
-            fmt.Println("burrrrr")
-            shardManager.Shards = append(shardManager.Shards,getNewShard(ShardSize)) // TODO: using append here might not be the best thing to do!
         }
 
+        // swap the fuckin pointer to shard manager....
+        nextShardManager.mutex.Lock()
+
+
+
+        nextShardManager.mutex.Unlock()
+        // var addSize int32 = ShardManagerSizeLim
+        // lenn := len(shardManager.Shards)
+
+        // for i := lenn; i < lenn + int(addSize) ; i++ {
+        //     fmt.Println("burrrrr")
+        //     shardManager.Shards = append(shardManager.Shards,getNewShard(ShardSize)) // TODO: using append here might not be the best thing to do!
+        // }
 
         atomic.SwapInt32(&curShardManagerSize, int32(len(shardManager.Shards)))
 
@@ -254,6 +290,10 @@ func _setKey(key string, value string) {
 
     }
 
+    if shardNumber >= int32(len(shardManager.Shards)) {
+        fmt.Println("We're fucked sire, *salutes*")
+        os.Exit(1)
+    }
 	// TODO: fix the below shit, it should not be this way
     // fmt.Println("set worker locked acquired")
 

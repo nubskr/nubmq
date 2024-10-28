@@ -53,7 +53,7 @@ func handleConnection(conn net.Conn) {
 
 func main() {
     fasttttt := true
-    // fasttttt = false
+    fasttttt = false
 
     if fasttttt {
         runtime.GOMAXPROCS(runtime.NumCPU())
