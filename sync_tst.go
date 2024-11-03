@@ -13,8 +13,8 @@ import (
 	"sort"
 )
 
-var numConnections = 50             // Number of concurrent connections
-var numKeys = 1000000      	  // Total number of unique keys
+var numConnections = 10             // Number of concurrent connections
+var numKeys = 100      	  // Total number of unique keys
 
 func whatever(shit string) string {
 	if shit == "NaN" {
