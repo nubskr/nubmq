@@ -1,20 +1,21 @@
 package main
 
 import (
-	"os"
 	"bufio"
+	"encoding/csv"
 	"fmt"
+	"log"
 	"net"
+	"os"
+	"sort"
 	"strings"
 	"sync"
+	"testing"
 	"time"
-	"encoding/csv"
-	"log"
-	"sort"
 )
 
-var numConnections = 10             // Number of concurrent connections
-var numKeys = 100      	  // Total number of unique keys
+var numConnections = 50 // Number of concurrent connections
+var numKeys = 1000000   // Total number of unique keys
 
 func whatever(shit string) string {
 	if shit == "NaN" {
@@ -52,7 +53,7 @@ func _readValidResponse(reader *bufio.Reader) (string, error) {
 			// Unexpected echo of the GET command, ignore and continue reading
 			continue
 		}
-        if strings.HasPrefix(response, "SET") {
+		if strings.HasPrefix(response, "SET") {
 			// Unexpected echo of the GET command, ignore and continue reading
 			continue
 		}
@@ -87,36 +88,35 @@ func _readValidResponse(reader *bufio.Reader) (string, error) {
 // }
 
 func writeDurationsToCSV(filename string, durations []time.Duration) error {
-    file, err := os.Create(filename)
-    if err != nil {
-        return err
-    }
-    defer file.Close()
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-    writer := csv.NewWriter(file)
-    defer writer.Flush()
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
 
-    // Write header
-    writer.Write([]string{"Rank", "Duration_ms"})
+	// Write header
+	writer.Write([]string{"Rank", "Duration_ms"})
 
-    // Write data
+	// Write data
 
-    for i, duration := range durations {
-        durationInMs := float64(duration.Nanoseconds()) / 1e6 // Convert nanoseconds to milliseconds
-        record := []string{
-            fmt.Sprintf("%d", i+1),
-            fmt.Sprintf("%.3f", durationInMs),
-        }
-        if err := writer.Write(record); err != nil {
-            return err
-        }
-    }
+	for i, duration := range durations {
+		durationInMs := float64(duration.Nanoseconds()) / 1e6 // Convert nanoseconds to milliseconds
+		record := []string{
+			fmt.Sprintf("%d", i+1),
+			fmt.Sprintf("%.3f", durationInMs),
+		}
+		if err := writer.Write(record); err != nil {
+			return err
+		}
+	}
 
-    return nil
+	return nil
 }
 
-
-func main() {
+func Test_gogo(t *testing.T) {
 	// Configuration
 	serverAddress := "localhost:8080" // Replace with your server's address and port
 
@@ -164,6 +164,8 @@ func main() {
 				for k := 0; k < keysPerConn; k++ {
 					setResponses[connIdx][k] = fmt.Sprintf("Error: %v", err)
 					getResponses[connIdx][k] = fmt.Sprintf("Error: %v", err)
+					log.Fatalf("bad")
+					// t.FailNow()
 				}
 				return
 			}
@@ -269,7 +271,7 @@ func main() {
 	// // Calculate average SET and GET response times
 	// var totalSetTime time.Duration
 	// var totalGetTime time.Duration
-	
+
 	// for connIdx := 0; connIdx < numConnections; connIdx++ {
 	// 	for keyIdx := 0; keyIdx < keysPerConn; keyIdx++ {
 	// 		// Parse durations from SET responses
@@ -307,10 +309,10 @@ func main() {
 	// fmt.Printf("Average GET Response Time: %v\n", avgGetTime)
 	var totalSetTime time.Duration
 	var totalGetTime time.Duration
-	
+
 	var setDurations []time.Duration
 	var getDurations []time.Duration
-	
+
 	for connIdx := 0; connIdx < numConnections; connIdx++ {
 		for keyIdx := 0; keyIdx < keysPerConn; keyIdx++ {
 			// Parse durations from SET responses
@@ -326,7 +328,7 @@ func main() {
 					}
 				}
 			}
-	
+
 			// Parse durations from GET responses
 			getResp := getResponses[connIdx][keyIdx]
 			if strings.Contains(getResp, "(Time: ") {
@@ -342,32 +344,32 @@ func main() {
 			}
 		}
 	}
-	
+
 	avgSetTime := totalSetTime / time.Duration(numKeys)
 	avgGetTime := totalGetTime / time.Duration(numKeys)
-	
+
 	// Sort the durations in ascending order
 	sort.Slice(setDurations, func(i, j int) bool {
 		return setDurations[i] < setDurations[j]
 	})
-	
+
 	sort.Slice(getDurations, func(i, j int) bool {
 		return getDurations[i] < getDurations[j]
 	})
-	
+
 	// Get the top 10 max SET durations
 	topN := 1000000000
 	if len(setDurations) < topN {
 		topN = len(setDurations)
 	}
 	topSetDurations := setDurations[len(setDurations)-topN:]
-	
+
 	// Get the top 10 max GET durations
 	if len(getDurations) < topN {
 		topN = len(getDurations)
 	}
 	topGetDurations := getDurations[len(getDurations)-topN:]
-	
+
 	fmt.Printf("Average SET Response Time: %v\n", avgSetTime)
 	fmt.Printf("Top %d Max SET Response Times:\n", len(topSetDurations))
 
@@ -378,19 +380,16 @@ func main() {
 		// fmt.Printf("%v\n", topSetDurations[i])
 	}
 
-
-	
 	// Write SET durations to CSV
-	if err := writeDurationsToCSV("top_set_durations.csv", topSetDurations); err != nil {
+	if err := writeDurationsToCSV("./analysing-stuff/top_set_durations.csv", topSetDurations); err != nil {
 		log.Fatalf("Failed to write SET durations to CSV: %v", err)
 	}
-	
+
 	fmt.Printf("Average GET Response Time: %v\n", avgGetTime)
 	fmt.Printf("Top %d Max GET Response Times:\n", len(topGetDurations))
 	// for i := len(topGetDurations) - 1; i >= 0; i-- {
 	// 	fmt.Printf("%v\n", topGetDurations[i])
 	// }
-	
 
 	// Note: Connections are kept open and will be closed when the program exits
 }
