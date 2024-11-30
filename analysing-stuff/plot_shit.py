@@ -24,10 +24,10 @@ def plot_durations(csv_file, title, output_file):
     plt.close()
 
 # Plot SET durations
-plot_durations('top_set_durations.csv', 'Top 10 Max SET Response Times', 'top_set_durations.png')
+plot_durations('./top_set_durations.csv', 'Top 10 Max SET Response Times', './top_set_durations.png')
 
 # Plot GET durations
-plot_durations('top_get_durations.csv', 'Top 10 Max GET Response Times', 'top_get_durations.png')
+plot_durations('./top_get_durations.csv', 'Top 10 Max GET Response Times', './top_get_durations.png')
 
 print("Plots have been saved as 'top_set_durations.png' and 'top_get_durations.png'.")
 

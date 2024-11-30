@@ -9,6 +9,16 @@ import (
 
 var curShardManagerSize int32 = 1
 
+/*
+Changes:
+
+whenever we try to set something, we lazily traverse the ShardManagerKeeper, if we find the index in there,cool
+
+if not, we initiate the addition of the next ShardManager with the current size and just wait until we have it
+
+
+*/
+
 func _setKey(key string, value string) {
 	idx := int32(696969696)
 

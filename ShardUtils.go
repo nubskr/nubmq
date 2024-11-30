@@ -12,9 +12,8 @@ func getNewValueData(value string) *ValueData {
 	}
 }
 
-func getNewShardManager() *ShardManager {
-	return &shardManager{
-		// TODO: complete this shit
-		// data: make()
+func getNewShardManager(sz int32) *ShardManager {
+	return &ShardManager{
+		Shards: make([]*Shard, sz),
 	}
 }

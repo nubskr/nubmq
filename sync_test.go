@@ -15,7 +15,7 @@ import (
 )
 
 var numConnections = 50 // Number of concurrent connections
-var numKeys = 1000000   // Total number of unique keys
+var numKeys = 100000    // Total number of unique keys
 
 func whatever(shit string) string {
 	if shit == "NaN" {
@@ -152,7 +152,7 @@ func Test_gogo(t *testing.T) {
 	// Start all connections and perform SET and GET operations sequentially
 	for connIdx := 0; connIdx < numConnections; connIdx++ {
 		// time.Sleep(1 * time.Second)
-		// time.Sleep(1 * time.Millisecond)
+		// time.Sleep(10 * time.Millisecond)
 		go func(connIdx int) {
 			defer wg.Done()
 

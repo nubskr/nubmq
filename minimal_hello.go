@@ -7,6 +7,22 @@ import (
 	"runtime"
 )
 
+// init a thousand shards
+// var shardManager = ShardManager{
+// 	Shards: make([]*Shard, 1000),
+// }
+
+/*
+ShardManagerKeeper
+	data: ShardManager:
+		Shards:
+
+*/
+
+var ShardManagerKeeper = ShardManagerKeeperTemp{
+	data: make([]*ShardManager, 0),
+}
+
 func main() {
 	fasttttt := true
 
@@ -23,9 +39,10 @@ func main() {
 	}
 
 	// TODO: remove this shit
-	for i := 0; i < 1000; i++ {
-		shardManager.Shards[i] = getNewShard(ShardSize)
-	}
+
+	// for i := 0; i < 1000; i++ {
+	// 	ShardManagerKeeper.data[0].Shards[i] = getNewShard(ShardSize)
+	// }
 
 	fmt.Println("Server listening on :8080")
 

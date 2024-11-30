@@ -35,13 +35,9 @@ var keyManager = KeyManager{
 }
 
 // INFO: this is the outermost layer!!
-type ShardManagerKeeper struct {
-	data []*ShardManager
-}
-
-// init a thousand shards
-var shardManager = ShardManager{
-	Shards: make([]*Shard, 1000),
+type ShardManagerKeeperTemp struct {
+	data  []*ShardManager
+	mutex sync.RWMutex
 }
 
 var nextIdx int32 = -1
