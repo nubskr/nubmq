@@ -36,8 +36,9 @@ var keyManager = KeyManager{
 
 // INFO: this is the outermost layer!!
 type ShardManagerKeeperTemp struct {
-	data  []*ShardManager
-	mutex sync.RWMutex
+	ShardManagers []*ShardManager
+	mutex         sync.RWMutex
+	capacity      int32
 }
 
 var nextIdx int32 = -1

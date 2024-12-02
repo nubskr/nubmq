@@ -13,14 +13,18 @@ import (
 // }
 
 /*
+
 ShardManagerKeeper
-	data: ShardManager:
-		Shards:
+	ShardManager..1.2.3..
+		Shard..1.2.3..
+			ValueData
 
 */
 
+// init an empty SMkeeper
 var ShardManagerKeeper = ShardManagerKeeperTemp{
-	data: make([]*ShardManager, 0),
+	ShardManagers: make([]*ShardManager, 0),
+	capacity:      0,
 }
 
 func main() {

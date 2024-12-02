@@ -7,15 +7,14 @@ import (
 	"unsafe"
 )
 
-var curShardManagerSize int32 = 1
-
 /*
+1,2,4,6,8,16,32,64
+
 Changes:
 
-whenever we try to set something, we lazily traverse the ShardManagerKeeper, if we find the index in there,cool
+whenever we try to set something, we lazily traverse the ShardManagerKeeper for now, if we find the index in there,cool
 
 if not, we initiate the addition of the next ShardManager with the current size and just wait until we have it
-
 
 */
 
@@ -43,25 +42,32 @@ func _setKey(key string, value string) {
 	shardNumber := idx / ShardSize
 	localShardIndex := idx % ShardSize
 
-	if localShardIndex == 0 {
-		atomic.AddInt32(&curShardManagerSize, 1)
-	}
-
 	fmt.Println("setting key", key, "at", idx, "at shard number", shardNumber, "at local index", localShardIndex)
 
 	fmt.Println("trying to acquire lock to set key")
 
 	newVal := getNewValueData(value)
 
-	shardManager.mutex.Lock()
+	ShardManagerKeeper.mutex.Lock()
 
 	// TODO: fix the below shit, it should not be this way
 	// fmt.Println("set worker locked acquired")
 
-	// if shardNumber >= int32(len(shardManager.Shards)) {
-	//     os.Exit(1)
-	// }
+	if shardNumber >= ShardManagerKeeper.capacity {
+		// do soemthing about it, lmao
+		ShardManagerKeeper.mutex.Unlock()
 
+		UpgradeShardManagerKeeper(shardNumber)
+
+		for atomic.LoadInt32(&ShardManagerKeeper.capacity) <= shardNumber {
+			// just wait it out man
+		}
+
+		ShardManagerKeeper.mutex.Lock()
+	}
+
+	tmpNow := 0
+	for tmpNow 
 	shard := shardManager.Shards[shardNumber]
 
 	shardManager.mutex.Unlock()

@@ -12,8 +12,19 @@ func getNewValueData(value string) *ValueData {
 	}
 }
 
-func getNewShardManager(sz int32) *ShardManager {
+func getNewShardManagerTemplate(sz int) *ShardManager {
 	return &ShardManager{
 		Shards: make([]*Shard, sz),
 	}
+}
+
+// return a new ShardManager with `sz` Shards
+func getNewShardManager(sz int) *ShardManager {
+	newSM := getNewShardManagerTemplate(sz)
+
+	for i := 0; i < sz; i++ {
+		newSM.Shards[i] = getNewShard(ShardSize)
+	}
+
+	return newSM
 }

@@ -3,15 +3,15 @@ package main
 import "sync"
 
 type nextShardManagerTemplate struct {
-	SM    chan *[]ShardManager
+	data  chan *ShardManager
 	mutex sync.RWMutex
 }
 
 var nextShardManager = nextShardManagerTemplate{
-	SM: make(chan *[]ShardManager),
+	data: make(chan *ShardManager),
 }
 
-var noOfShards int32 = 1000
+var noOfShards int = 1000 // these are the number of shards in each ShardManager
 
 func nextShardManagerWatcher() {
 	curSz := 1
@@ -19,21 +19,40 @@ func nextShardManagerWatcher() {
 	for {
 		nextShardManager.mutex.Lock()
 
-		now := make([]ShardManager, curSz)
-		for i := 0; i < curSz; i++ {
-			now[i] = *getNewShardManager(noOfShards)
-		}
+		now := getNewShardManager(curSz)
 
-		nextShardManager.SM <- &now
+		nextShardManager.data <- now
 		curSz *= 2
 
 		nextShardManager.mutex.Unlock()
 	}
 }
 
-func UpgradeShardManagerKeeper(curSz int32) {
+// Adds one more layer of SM to SMkeeper
+func UpgradeShardManagerKeeper(newSz int32) {
 	// get a lock and check if we even need to resize at all,
 
 	// how to resize
+	ShardManagerKeeper.mutex.Lock()
+
+	if ShardManagerKeeper.capacity > newSz {
+		ShardManagerKeeper.mutex.Unlock()
+		return
+	}
+
+	nextShardManager.mutex.Lock()
+	// append this SM to SMkeeper
+	toBeAddedSM := <-nextShardManager.data
+
+	ShardManagerKeeper.ShardManagers = append(ShardManagerKeeper.ShardManagers, toBeAddedSM)
+	ShardManagerKeeper.capacity += int32(len(toBeAddedSM.Shards)) // do we need atomic here ? I don't think so, since this thing is only being updated one at a time due to locks
+
+	if ShardManagerKeeper.capacity <= newSz {
+		go UpgradeShardManagerKeeper(newSz)
+	}
+
+	nextShardManager.mutex.Unlock()
+
+	ShardManagerKeeper.mutex.Unlock()
 
 }
