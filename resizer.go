@@ -14,19 +14,21 @@ var nextShardManager = nextShardManagerTemplate{
 	data: make(chan *ShardManager),
 }
 
-var noOfShards int = 1000 // these are the number of shards in each ShardManager
+// var noOfShards int = 1000 // these are the number of shards in each ShardManager
 
 func nextShardManagerWatcher() {
 	curSz := 1
 
 	for {
-		fmt.Println("<=======Next creation worker triggered for size=======>", curSz)
+		// fmt.Println("<=======Next creation worker triggered for size=======>", curSz)
 
 		// nextShardManager.mutex.Lock()
 
 		now := getNewShardManager(curSz)
 
 		nextShardManager.data <- now
+		fmt.Println("<=======NextSM of size=======>", curSz, "X-digested-X")
+
 		curSz *= 2
 
 		// nextShardManager.mutex.Unlock()
@@ -65,6 +67,8 @@ func UpgradeShardManagerKeeper(newSz int32) {
 	fmt.Println("We good ?")
 	ShardManagerKeeper.ShardManagers = append(ShardManagerKeeper.ShardManagers, toBeAddedSM)
 	ShardManagerKeeper.capacity += int32(len(toBeAddedSM.Shards)) // do we need atomic here ? I don't think so, since this thing is only being updated one at a time due to locks
+
+	fmt.Println("capacity upgraded to", ShardManagerKeeper.capacity)
 
 	if ShardManagerKeeper.capacity <= newSz {
 		go UpgradeShardManagerKeeper(newSz)

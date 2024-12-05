@@ -1,5 +1,7 @@
 package main
 
+import "math"
+
 func getNewShard(sz int32) *Shard {
 	return &Shard{
 		data: make([]*ValueData, sz, ShardSize),
@@ -45,4 +47,18 @@ func getShardManagerKeeperIndex(pos int) int {
 		}
 	}
 	return -1
+}
+
+func getEstimatedCapacityFromShardNumber(shardNumber int) int64 {
+	return int64(math.Pow(2, float64(shardNumber+1))) - 1
+}
+
+// TODO: make it faster with binary search
+func getShardNumberAndIndexPair(rawValue int64) (int, int) {
+	// (ShardManagerNumber ,)
+	i := 0
+	for getEstimatedCapacityFromShardNumber(i) < int64(rawValue+1) {
+		i++
+	}
+	return i, i - 1
 }
