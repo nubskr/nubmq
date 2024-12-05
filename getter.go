@@ -26,22 +26,45 @@ func _getKey(key string) (string, bool) {
 	}
 
 	shardNumber := idx / ShardSize
+	//
 
-	shardManager.mutex.Lock()
+	ShardManagerKeeper.mutex.RLock()
 
-	if shardNumber >= int32(len(shardManager.Shards)) {
-		shardManager.mutex.Unlock()
-		return "", false
+	SMidx := getShardManagerKeeperIndex(int(shardNumber))
+
+	if SMidx == -1 {
+		fmt.Println("we fucked up in resizing sire")
+		os.Exit(1)
 	}
 
-	shard := shardManager.Shards[shardNumber]
+	shard := ShardManagerKeeper.ShardManagers[SMidx].Shards[shardNumber]
 	localShardIndex := idx % ShardSize
 
 	if localShardIndex < int32(len(shard.data)) {
-		shardManager.mutex.Unlock()
+		ShardManagerKeeper.mutex.RUnlock()
 		return (shard.data[localShardIndex]).data, true
 	}
 
-	shardManager.mutex.Unlock()
+	ShardManagerKeeper.mutex.RUnlock()
+
 	return "NaN", false
+
+	//
+
+	// shardManager.mutex.Lock()
+
+	// if shardNumber >= int32(len(shardManager.Shards)) {
+	// 	shardManager.mutex.Unlock()
+	// 	return "", false
+	// }
+
+	// shard := shardManager.Shards[shardNumber]
+	// localShardIndex := idx % ShardSize
+
+	// if localShardIndex < int32(len(shard.data)) {
+	// 	shardManager.mutex.Unlock()
+	// 	return (shard.data[localShardIndex]).data, true
+	// }
+
+	// shardManager.mutex.Unlock()
 }

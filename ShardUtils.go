@@ -28,3 +28,21 @@ func getNewShardManager(sz int) *ShardManager {
 
 	return newSM
 }
+
+func getShardManagerKeeperIndex(pos int) int {
+	// the below thing assuming that there is already a lock placed on SMKeeper
+	sz := len(ShardManagerKeeper.ShardManagers)
+	travTillNow := 0
+	for i := 0; i < sz; i++ {
+
+		// do we need a lock on the below ?
+		curSMsize := len(ShardManagerKeeper.ShardManagers[i].Shards)
+
+		travTillNow += curSMsize
+
+		if travTillNow > pos {
+			return i
+		}
+	}
+	return -1
+}

@@ -27,7 +27,7 @@ type ShardManager struct {
 	mutex  sync.RWMutex
 }
 
-var ShardSize int32 = 500
+var ShardSize int32 = 1
 
 // Global variables
 var keyManager = KeyManager{

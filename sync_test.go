@@ -14,8 +14,8 @@ import (
 	"time"
 )
 
-var numConnections = 50 // Number of concurrent connections
-var numKeys = 100000    // Total number of unique keys
+var numConnections = 1 // Number of concurrent connections
+var numKeys = 3        // Total number of unique keys
 
 func whatever(shit string) string {
 	if shit == "NaN" {

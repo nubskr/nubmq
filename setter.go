@@ -44,33 +44,41 @@ func _setKey(key string, value string) {
 
 	fmt.Println("setting key", key, "at", idx, "at shard number", shardNumber, "at local index", localShardIndex)
 
-	fmt.Println("trying to acquire lock to set key")
-
 	newVal := getNewValueData(value)
+	fmt.Println("trying to acquire lock to set key")
 
 	ShardManagerKeeper.mutex.Lock()
 
+	fmt.Println("lock acquired to set key")
 	// TODO: fix the below shit, it should not be this way
 	// fmt.Println("set worker locked acquired")
 
-	if shardNumber >= ShardManagerKeeper.capacity {
+	if shardNumber >= atomic.LoadInt32(&ShardManagerKeeper.capacity) {
 		// do soemthing about it, lmao
+		fmt.Println("Need to Upgrate the SMKeeper to accomodate")
+
 		ShardManagerKeeper.mutex.Unlock()
 
 		UpgradeShardManagerKeeper(shardNumber)
 
 		for atomic.LoadInt32(&ShardManagerKeeper.capacity) <= shardNumber {
-			// just wait it out man
+			// wait it out
+			fmt.Println("staring into your soul")
 		}
 
 		ShardManagerKeeper.mutex.Lock()
 	}
 
-	tmpNow := 0
-	for tmpNow 
-	shard := shardManager.Shards[shardNumber]
+	SMidx := getShardManagerKeeperIndex(int(shardNumber))
 
-	shardManager.mutex.Unlock()
+	if SMidx == -1 {
+		fmt.Println("we fucked up in resizing sire")
+		os.Exit(1)
+	}
+
+	shard := ShardManagerKeeper.ShardManagers[SMidx].Shards[shardNumber]
+
+	ShardManagerKeeper.mutex.Unlock()
 
 	fmt.Println("set worker locked released")
 

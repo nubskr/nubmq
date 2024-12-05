@@ -42,6 +42,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	go nextShardManagerWatcher()
 	// TODO: remove this shit
 
 	// for i := 0; i < 1000; i++ {
