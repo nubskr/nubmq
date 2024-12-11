@@ -1,10 +1,14 @@
 package main
 
-import "math"
+import (
+	"math"
+	"sync"
+)
 
 func getNewShard(sz int32) *Shard {
 	return &Shard{
-		data: make([]*ValueData, sz, ShardSize),
+		// data: make([]*ValueData, sz, ShardSize),
+		data: sync.Map{},
 	}
 }
 
@@ -54,11 +58,18 @@ func getEstimatedCapacityFromShardNumber(shardNumber int) int64 {
 }
 
 // TODO: make it faster with binary search
-func getShardNumberAndIndexPair(rawValue int64) (int, int) {
+func getShardNumberAndIndexPair(rawidx int) (int, int) {
 	// (ShardManagerNumber ,)
 	i := 0
-	for getEstimatedCapacityFromShardNumber(i) < int64(rawValue+1) {
+	for getEstimatedCapacityFromShardNumber(i) <= int64(rawidx) {
 		i++
 	}
-	return i, i - 1
+	// now that we have i, find the index it is in
+	var localIdx int = int(rawidx)
+
+	if i > 0 {
+		localIdx = int(int64(rawidx) - getEstimatedCapacityFromShardNumber(i-1) - 1)
+	}
+
+	return i, localIdx
 }

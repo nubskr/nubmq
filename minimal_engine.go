@@ -24,7 +24,8 @@ ShardManagerKeeper
 // init an empty SMkeeper
 var ShardManagerKeeper = ShardManagerKeeperTemp{
 	ShardManagers: make([]*ShardManager, 0),
-	capacity:      0,
+	totalCapacity: 0,
+	usedCapacity:  0,
 }
 
 func main() {
@@ -43,11 +44,6 @@ func main() {
 	}
 
 	go nextShardManagerWatcher()
-	// TODO: remove this shit
-
-	// for i := 0; i < 1000; i++ {
-	// 	ShardManagerKeeper.data[0].Shards[i] = getNewShard(ShardSize)
-	// }
 
 	fmt.Println("Server listening on :8080")
 

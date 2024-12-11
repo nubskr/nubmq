@@ -44,7 +44,8 @@ forget whatever happens to reads and writes during the resizing mode as of now
 ughhhh, what is the smallest shit I can do to get it started
 
 [+] Get rid of key manager
-[+] Change SETs and GETs
+[+] Change SETs and GETs to not use the darn key manager and use KeyHash instead
+[+] 
 
 
 ## Non Negotiables:

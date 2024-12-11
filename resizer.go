@@ -48,7 +48,7 @@ func UpgradeShardManagerKeeper(newSz int32) {
 
 	fmt.Println("lock acquired")
 
-	if ShardManagerKeeper.capacity > newSz {
+	if int32(ShardManagerKeeper.totalCapacity) > newSz {
 		fmt.Println("trash, no need to upgrade, already big enough")
 
 		ShardManagerKeeper.mutex.Unlock()
@@ -66,11 +66,11 @@ func UpgradeShardManagerKeeper(newSz int32) {
 
 	fmt.Println("We good ?")
 	ShardManagerKeeper.ShardManagers = append(ShardManagerKeeper.ShardManagers, toBeAddedSM)
-	ShardManagerKeeper.capacity += int32(len(toBeAddedSM.Shards)) // do we need atomic here ? I don't think so, since this thing is only being updated one at a time due to locks
+	ShardManagerKeeper.totalCapacity += int64(len(toBeAddedSM.Shards)) // do we need atomic here ? I don't think so, since this thing is only being updated one at a time due to locks
 
-	fmt.Println("capacity upgraded to", ShardManagerKeeper.capacity)
+	fmt.Println("capacity upgraded to", ShardManagerKeeper.totalCapacity)
 
-	if ShardManagerKeeper.capacity <= newSz {
+	if int32(ShardManagerKeeper.totalCapacity) <= newSz {
 		go UpgradeShardManagerKeeper(newSz)
 	}
 

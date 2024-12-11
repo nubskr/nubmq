@@ -12,14 +12,10 @@ type ValueData struct {
 	mutex sync.RWMutex
 }
 
+// I know abstractions bad, but let it be for now, already too much complexity in life
 type Shard struct {
-	data []*ValueData
+	data sync.Map
 	size int32
-}
-
-type KeyManager struct {
-	Keys sync.Map
-	// mutex sync.Mutex // for adding new keys
 }
 
 type ShardManager struct {
@@ -29,17 +25,10 @@ type ShardManager struct {
 
 var ShardSize int32 = 1
 
-// Global variables
-var keyManager = KeyManager{
-	Keys: sync.Map{},
-}
-
 // INFO: this is the outermost layer!!
 type ShardManagerKeeperTemp struct {
 	ShardManagers []*ShardManager
 	mutex         sync.RWMutex
-	capacity      int32
+	totalCapacity int64
+	usedCapacity  int64
 }
-
-var nextIdx int32 = -1
-var curSetCnt int32 = 0
