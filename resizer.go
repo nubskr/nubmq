@@ -2,80 +2,64 @@ package main
 
 import (
 	"fmt"
-	"sync"
+	"sync/atomic"
 )
 
-type nextShardManagerTemplate struct {
-	data  chan *ShardManager
-	mutex sync.RWMutex
-}
-
-var nextShardManager = nextShardManagerTemplate{
-	data: make(chan *ShardManager),
-}
-
-// var noOfShards int = 1000 // these are the number of shards in each ShardManager
-
-func nextShardManagerWatcher() {
+// makes and returns a presized SMkeeper pointer
+func getNewShardManagerKeeper(sz int64) *ShardManagerKeeperTemp {
 	curSz := 1
 
-	for {
-		// fmt.Println("<=======Next creation worker triggered for size=======>", curSz)
-
-		// nextShardManager.mutex.Lock()
-
-		now := getNewShardManager(curSz)
-
-		nextShardManager.data <- now
-		fmt.Println("<=======NextSM of size=======>", curSz, "X-digested-X")
-
-		curSz *= 2
-
-		// nextShardManager.mutex.Unlock()
+	var newSMkeeper = ShardManagerKeeperTemp{
+		ShardManagers: make([]*ShardManager, 0),
+		totalCapacity: 0,
+		usedCapacity:  0,
+		isResizing:    0,
 	}
+
+	for newSMkeeper.totalCapacity < sz {
+		// append shit in that
+		newSMkeeper.ShardManagers = append(newSMkeeper.ShardManagers, getNewShardManager(curSz))
+		newSMkeeper.totalCapacity += int64(curSz)
+		curSz *= 2 // WARN: this might overflow
+	}
+
+	return &newSMkeeper
 }
 
 // Adds one more layer of SM to SMkeeper
-func UpgradeShardManagerKeeper(newSz int32) {
-	// get a lock and check if we even need to resize at all,
+func UpgradeShardManagerKeeper() {
+	fmt.Println("UpgradeShardManagerKeeper triggered")
+	/*
+		first check if even need to resize
 
-	// how to resize
-	fmt.Println("SMKeeper upgrade triggered")
+		this thing, once triggered will change the system mode to resizing
 
-	fmt.Println("trying to acquire lock")
+		then we make a newSM with double the size of current SM
 
-	ShardManagerKeeper.mutex.Lock()
+		once made, then take each key, rehash it, and then insert it into newer SMkeeper, do it slowly as to now overwhelm the new table and affect new incoming sets
 
-	fmt.Println("lock acquired")
+		once this all is done, we swap the SMkeeper pointer to the newer SMkeeper
 
-	if int32(ShardManagerKeeper.totalCapacity) > newSz {
-		fmt.Println("trash, no need to upgrade, already big enough")
+		and change the system mode back to normal
+	*/
 
-		ShardManagerKeeper.mutex.Unlock()
+	if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity)*2 > atomic.LoadInt64(&ShardManagerKeeper.usedCapacity) || atomic.LoadInt32(&ShardManagerKeeper.isResizing) == 1 {
 		return
 	}
 
-	fmt.Println("acquiring nextSM lock")
+	atomic.AddInt32(&ShardManagerKeeper.isResizing, 1)
 
-	// nextShardManager.mutex.Lock()
+	newShardManagerKeeper.mutex.Lock()
 
-	fmt.Println("next smkeeper lock acquired")
+	tempNewSM := getNewShardManagerKeeper(ShardManagerKeeper.totalCapacity)
 
-	// append this SM to SMkeeper
-	toBeAddedSM := <-nextShardManager.data
+	newShardManagerKeeper.ShardManagers = tempNewSM.ShardManagers
+	newShardManagerKeeper.totalCapacity = tempNewSM.totalCapacity
+	newShardManagerKeeper.usedCapacity = 0
 
-	fmt.Println("We good ?")
-	ShardManagerKeeper.ShardManagers = append(ShardManagerKeeper.ShardManagers, toBeAddedSM)
-	ShardManagerKeeper.totalCapacity += int64(len(toBeAddedSM.Shards)) // do we need atomic here ? I don't think so, since this thing is only being updated one at a time due to locks
-
-	fmt.Println("capacity upgraded to", ShardManagerKeeper.totalCapacity)
-
-	if int32(ShardManagerKeeper.totalCapacity) <= newSz {
-		go UpgradeShardManagerKeeper(newSz)
-	}
-
-	// nextShardManager.mutex.Unlock()
-
-	ShardManagerKeeper.mutex.Unlock()
+	newShardManagerKeeper.mutex.Unlock()
+	/*
+		now we can start migrating those keys somehow, make another go routine for that, which keeps running in the backgroud and does stuff
+	*/
 
 }

@@ -31,4 +31,5 @@ type ShardManagerKeeperTemp struct {
 	mutex         sync.RWMutex
 	totalCapacity int64
 	usedCapacity  int64
+	isResizing    int32
 }

@@ -1,9 +1,8 @@
 package main
 
-func getAtIndex(idx int, key string) (string, bool) {
+func getAtIndex(idx int, key string, keeper *ShardManagerKeeperTemp) (string, bool) {
 	SMidx, localIdx := getShardNumberAndIndexPair(idx)
-	target := ShardManagerKeeper.ShardManagers[SMidx].Shards[localIdx]
-	// target.data.Store(key, val)
+	target := keeper.ShardManagers[SMidx].Shards[localIdx]
 	value, ok := target.data.Load(key)
 	if ok {
 		return value.(string), true
@@ -13,11 +12,26 @@ func getAtIndex(idx int, key string) (string, bool) {
 }
 
 func _getKey(key string) (string, bool) {
-	// ShardManagerKeeper.mutex.RLock()
+	// check the new table first then the old one
+	// TODO: can we do something better ? having to check two tables to fulfil one request is slow
 
-	// ret,found := getAtIndex(getKeyHash(key), key)
+	if true {
+		newShardManagerKeeper.mutex.RLock()
 
-	// ShardManagerKeeper.mutex.RUnlock()
+		ret, found := getAtIndex(getKeyHash(key, &newShardManagerKeeper), key, &newShardManagerKeeper)
 
-	return getAtIndex(getKeyHash(key), key)
+		newShardManagerKeeper.mutex.RUnlock()
+
+		if found {
+			return ret, found
+		}
+	}
+
+	ShardManagerKeeper.mutex.RLock()
+
+	ret, found := getAtIndex(getKeyHash(key, &ShardManagerKeeper), key, &ShardManagerKeeper)
+
+	ShardManagerKeeper.mutex.RUnlock()
+
+	return ret, found
 }

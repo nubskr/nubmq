@@ -53,3 +53,9 @@ ughhhh, what is the smallest shit I can do to get it started
 * to resize, need to change engine and hash function at the exact same time, can't allow any delay in between
 
 
+## Few standards
+
+SMkeeper will be given as a pointer
+
+* getAtIndex(idx,key,SMkeeper)
+* setAtIndex(idx,key,val,SMkeeper)

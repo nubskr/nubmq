@@ -26,6 +26,14 @@ var ShardManagerKeeper = ShardManagerKeeperTemp{
 	ShardManagers: make([]*ShardManager, 0),
 	totalCapacity: 0,
 	usedCapacity:  0,
+	isResizing:    0,
+}
+
+var newShardManagerKeeper = ShardManagerKeeperTemp{
+	ShardManagers: make([]*ShardManager, 0),
+	totalCapacity: 0,
+	usedCapacity:  0,
+	isResizing:    0,
 }
 
 func main() {
@@ -43,9 +51,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	go nextShardManagerWatcher()
+	// go nextShardManagerWatcher()
 
 	fmt.Println("Server listening on :8080")
+
+	// init for 2 now
+	ShardManagerKeeper = *getNewShardManagerKeeper(2)
 
 	for {
 		// Accept connection
