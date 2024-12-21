@@ -56,7 +56,8 @@ func main() {
 	fmt.Println("Server listening on :8080")
 
 	// init for 2 now
-	ShardManagerKeeper = *getNewShardManagerKeeper(2)
+	ShardManagerKeeper = *getNewShardManagerKeeper(80)
+	newShardManagerKeeper = *getNewShardManagerKeeper(80)
 
 	for {
 		// Accept connection

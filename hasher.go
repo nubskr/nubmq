@@ -1,9 +1,12 @@
 package main
 
-var tableSize int = 10
+import "os"
 
 // just use a polynomial rolling hash for now
 func getKeyHash(key string, keeper *ShardManagerKeeperTemp) int {
+	if int(keeper.totalCapacity) == 0 {
+		os.Exit(1)
+	}
 	hashValue := 0
 	prime := 31 // A small prime number for mixing
 	for _, char := range key {

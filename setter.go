@@ -21,6 +21,11 @@ func setAtIndex(idx int, key string, val string, keeper *ShardManagerKeeperTemp)
 	target.data.Store(key, val)
 }
 
+// force inserts the key in sm without any checks, use with caution
+func forceSetKey(key string, value string, sm *ShardManagerKeeperTemp) {
+	setAtIndex(getKeyHash(key, sm), key, value, sm)
+}
+
 func _setKey(key string, value string) {
 	/*
 		get the key hash and ShardNumber from there
@@ -30,6 +35,7 @@ func _setKey(key string, value string) {
 		TODO: check for capacity exceeding desired upper bound and then trigger resizing state
 	*/
 	if atomic.LoadInt32(&ShardManagerKeeper.isResizing) == 0 {
+		fmt.Println("inserting in old table")
 		fmt.Println("in")
 		ShardManagerKeeper.mutex.RLock()
 
@@ -40,11 +46,18 @@ func _setKey(key string, value string) {
 		if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity)*2 <= atomic.LoadInt64(&ShardManagerKeeper.usedCapacity) {
 			// theoretically it should always trigger this before trying to set something which it can't set it
 			// just be mindful of that
-			go UpgradeShardManagerKeeper()
+			fmt.Println("triggering resizing")
+			newShardManagerKeeper.mutex.Lock()
+			UpgradeShardManagerKeeper()
+			newShardManagerKeeper.mutex.Unlock()
+			go migrateKeys(&ShardManagerKeeper, &newShardManagerKeeper)
 		}
 		fmt.Println("out")
 	} else {
+		fmt.Println("inserting in new table")
 		// put stuff in the new table
+
+		// WARN: the newSMKeeper might not be fully resized at this exact piece of time, stupid concurrency
 		newShardManagerKeeper.mutex.RLock()
 
 		setAtIndex(getKeyHash(key, &newShardManagerKeeper), key, value, &newShardManagerKeeper)
