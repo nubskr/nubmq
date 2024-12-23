@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 	"sync"
 )
@@ -42,11 +41,7 @@ func getEstimatedCapacityFromShardNumber(shardNumber int) int64 {
 }
 
 // TODO: make it faster with binary search
-// BUG: something wrong with localIdx calculation shit, fix it idiot
 func getShardNumberAndIndexPair(rawidx int) (int, int) {
-	// (ShardManagerNumber ,)
-	fmt.Println("lmao, look at me", rawidx)
-	// rawidx -= 1
 	i := 0
 	for getEstimatedCapacityFromShardNumber(i) <= int64(rawidx) {
 		i++

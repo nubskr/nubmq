@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 // makes and returns a presized SMkeeper pointer
@@ -27,6 +28,10 @@ func getNewShardManagerKeeper(sz int64) *ShardManagerKeeperTemp {
 	return &newSMkeeper
 }
 
+func ReplaceShardManagerKeeper(old **ShardManagerKeeperTemp, newKeeper *ShardManagerKeeperTemp) {
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(old)), unsafe.Pointer(newKeeper))
+}
+
 // migrates all keys from sm1 to sm2
 func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 	/*
@@ -39,6 +44,7 @@ func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 	*/
 
 	sm1.mutex.Lock()
+	fmt.Println("Migrating Keys start---------------")
 	for _, SM := range sm1.ShardManagers {
 		for _, Shard := range SM.Shards {
 			pairs := make(map[interface{}]interface{})
@@ -57,10 +63,19 @@ func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 	}
 
 	sm2.mutex.Lock()
-	sm1.ShardManagers = sm2.ShardManagers // does this copies the darn pointers ?
-	sm1.isResizing = 0
+
+	// BUG: do something here man, wtf
+	// sm1.ShardManagers = sm2.ShardManagers // make it point to that pointer
+	// sm1.totalCapacity = sm2.totalCapacity
+	// sm1.usedCapacity = sm2.usedCapacity
+	// sm1.isResizing = 0
+
+	// fmeBro := *getNewShardManagerKeeper(2)
+	// ReplaceShardManagerKeeper(&sm2, &fmeBro)
+
 	sm2.mutex.Unlock()
 	sm1.mutex.Unlock()
+	fmt.Println("Migrating Keys end-----------------")
 	// now we need to somehow swap SMkeeper with newSMkeeper "safely"
 	// make SMkeeper point to newSMkeeper and , no, essentially swap the pointers of S
 

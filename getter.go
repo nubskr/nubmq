@@ -2,6 +2,9 @@ package main
 
 func getAtIndex(idx int, key string, keeper *ShardManagerKeeperTemp) (string, bool) {
 	SMidx, localIdx := getShardNumberAndIndexPair(idx)
+	if SMidx >= len(keeper.ShardManagers) {
+		return "NaN", false
+	}
 	target := keeper.ShardManagers[SMidx].Shards[localIdx]
 	value, ok := target.data.Load(key)
 	if ok {

@@ -7,11 +7,11 @@ import (
 
 func setAtIndex(idx int, key string, val string, keeper *ShardManagerKeeperTemp) {
 	SMidx, localIdx := getShardNumberAndIndexPair(idx)
-	fmt.Println("ping", SMidx, localIdx)
+	// fmt.Println("ping", SMidx, localIdx)
 	target := keeper.ShardManagers[SMidx].Shards[localIdx]
 	// is there any existing value for this key ? if not we increase the used capacity to keep track of active keys
 	value, ok := target.data.Load(key)
-	fmt.Println("trying to set at global SM index", SMidx, "at local index", localIdx)
+	// fmt.Println("trying to set at global SM index", SMidx, "at local index", localIdx)
 	if !ok {
 		// atomically increase by one
 		atomic.AddInt64(&ShardManagerKeeper.usedCapacity, 1)
