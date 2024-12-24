@@ -7,11 +7,6 @@ import (
 	"runtime"
 )
 
-// init a thousand shards
-// var shardManager = ShardManager{
-// 	Shards: make([]*Shard, 1000),
-// }
-
 /*
 
 ShardManagerKeeper

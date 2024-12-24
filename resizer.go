@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync/atomic"
 	"time"
-	"unsafe"
 )
 
 // makes and returns a presized SMkeeper pointer
@@ -28,12 +27,41 @@ func getNewShardManagerKeeper(sz int64) *ShardManagerKeeperTemp {
 	return &newSMkeeper
 }
 
-func ReplaceShardManagerKeeper(old **ShardManagerKeeperTemp, newKeeper *ShardManagerKeeperTemp) {
-	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(old)), unsafe.Pointer(newKeeper))
+func switchTables(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
+	// essentially give some time for the newTable to get all the SETs settled in, the below thing is NOT reliable at all
+	time.Sleep(500 * time.Microsecond) // too long ? // TODO: remove this shit for something more trusty you idiot, what the fuck is even this, are you a fucking clown ?
+
+	// do stuff
+	sm2.mutex.Lock()
+
+	// make sm1 point to sm2's memory
+	sm1.ShardManagers = sm2.ShardManagers
+	sm1.totalCapacity = sm2.totalCapacity
+	sm1.usedCapacity = sm2.usedCapacity
+	// dereference sm2 and make it point to an empty SMkeeper object
+
+	// sm2 = &ShardManagerKeeperTemp{
+	// 	ShardManagers: nil,
+	// 	totalCapacity: 0,
+	// 	usedCapacity:  0,
+	// 	isResizing:    0,
+	// }
+
+	sm2.mutex.Unlock()
+
+	// sm2 = getNewShardManagerKeeper(1) // BUG: NOT THREAD SAFE, but we assume no ops are happening to sm2
+
+	// pull the darn cork out
+	atomic.AddInt32(&HaltSets, -1)
+	fmt.Println("switched to main sm-----------------------")
+	atomic.AddInt32(&sm1.isResizing, -1)
 }
 
 // migrates all keys from sm1 to sm2
 func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
+	if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity)*2 > atomic.LoadInt64(&ShardManagerKeeper.usedCapacity) {
+		return
+	}
 	/*
 
 		ShardManagerKeeper
@@ -59,23 +87,24 @@ func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 				go forceSetKey(k.(string), v.(string), sm2)
 			}
 		}
-		time.Sleep(10 * time.Microsecond) // TODO: please find a better way to do this thing ffs
+		// time.Sleep(1 * time.Microsecond) // TODO: please find a better way to do this thing ffs
 	}
 
-	sm2.mutex.Lock()
+	// sm2.mutex.Lock()
 
-	// BUG: do something here man, wtf
 	// sm1.ShardManagers = sm2.ShardManagers // make it point to that pointer
-	// sm1.totalCapacity = sm2.totalCapacity
-	// sm1.usedCapacity = sm2.usedCapacity
-	// sm1.isResizing = 0
+	// sm1.totalCapacity = int64(sm2.totalCapacity)
+	// BUG: start here, note that we can't just make the usedCapacity as sm2.usedCapacity
 
-	// fmeBro := *getNewShardManagerKeeper(2)
-	// ReplaceShardManagerKeeper(&sm2, &fmeBro)
+	// sm1.isResizing = 0 // make sure this is the last thing you do!
 
-	sm2.mutex.Unlock()
+	// sm2.mutex.Unlock()
 	sm1.mutex.Unlock()
 	fmt.Println("Migrating Keys end-----------------")
+
+	atomic.AddInt32(&HaltSets, 1)
+
+	go switchTables(sm1, sm2)
 	// now we need to somehow swap SMkeeper with newSMkeeper "safely"
 	// make SMkeeper point to newSMkeeper and , no, essentially swap the pointers of S
 

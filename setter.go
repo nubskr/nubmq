@@ -34,6 +34,12 @@ func _setKey(key string, value string) {
 
 		TODO: check for capacity exceeding desired upper bound and then trigger resizing state
 	*/
+
+	// halt to switch tables
+	for atomic.LoadInt32(&HaltSets) == 1 {
+		// fmt.Println("Sets-----x------Halted----------------------------------")
+	}
+
 	if atomic.LoadInt32(&ShardManagerKeeper.isResizing) == 0 {
 		fmt.Println("inserting in old table")
 		fmt.Println("in")
@@ -50,6 +56,7 @@ func _setKey(key string, value string) {
 			newShardManagerKeeper.mutex.Lock()
 			UpgradeShardManagerKeeper()
 			newShardManagerKeeper.mutex.Unlock()
+			// BUG: this might not be necessary, given that this might be called unneceaarily, note that upgrades are not always needed, look into it, possibly add a condition where we even need to migrate keys
 			go migrateKeys(&ShardManagerKeeper, &newShardManagerKeeper)
 		}
 		fmt.Println("out")

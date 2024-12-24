@@ -24,6 +24,7 @@ type ShardManager struct {
 }
 
 var ShardSize int32 = 1
+var HaltSets int32 = 0
 
 // INFO: this is the outermost layer!!
 type ShardManagerKeeperTemp struct {

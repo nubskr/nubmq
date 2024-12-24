@@ -1,10 +1,14 @@
 package main
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 // just use a polynomial rolling hash for now
 func getKeyHash(key string, keeper *ShardManagerKeeperTemp) int {
 	if int(keeper.totalCapacity) == 0 {
+		fmt.Println("hasher error: total capacity is 0")
 		os.Exit(1)
 	}
 	hashValue := 0
