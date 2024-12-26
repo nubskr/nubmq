@@ -37,7 +37,7 @@ func _setKey(key string, value string) {
 
 	// halt to switch tables
 	for atomic.LoadInt32(&HaltSets) == 1 {
-		// fmt.Println("Sets-----x------Halted----------------------------------")
+		fmt.Println("Sets-----x------Halted----------------------------------")
 	}
 
 	if atomic.LoadInt32(&ShardManagerKeeper.isResizing) == 0 {

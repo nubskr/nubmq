@@ -52,7 +52,7 @@ func main() {
 
 	// init for 2 now
 	ShardManagerKeeper = *getNewShardManagerKeeper(2)
-	// newShardManagerKeeper = *getNewShardManagerKeeper(2)
+	newShardManagerKeeper = *getNewShardManagerKeeper(1)
 
 	for {
 		// Accept connection

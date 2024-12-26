@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"sync/atomic"
 	"time"
 )
@@ -29,14 +30,18 @@ func getNewShardManagerKeeper(sz int64) *ShardManagerKeeperTemp {
 
 func switchTables(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 	// essentially give some time for the newTable to get all the SETs settled in, the below thing is NOT reliable at all
-	time.Sleep(500 * time.Microsecond) // too long ? // TODO: remove this shit for something more trusty you idiot, what the fuck is even this, are you a fucking clown ?
+	time.Sleep(1 * time.Second) // too long ? // TODO: remove this shit for something more trusty you idiot, what the fuck is even this, are you a fucking clown ?
 
 	// do stuff
 	sm2.mutex.Lock()
+	sm1.mutex.Lock()
 
 	// make sm1 point to sm2's memory
 	sm1.ShardManagers = sm2.ShardManagers
 	sm1.totalCapacity = sm2.totalCapacity
+	if sm2.totalCapacity == 0 {
+		log.Fatal("we're fucked sire, the world is fucked")
+	}
 	sm1.usedCapacity = sm2.usedCapacity
 	// dereference sm2 and make it point to an empty SMkeeper object
 
@@ -48,6 +53,7 @@ func switchTables(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 	// }
 
 	sm2.mutex.Unlock()
+	sm1.mutex.Unlock()
 
 	// sm2 = getNewShardManagerKeeper(1) // BUG: NOT THREAD SAFE, but we assume no ops are happening to sm2
 
@@ -131,8 +137,6 @@ func UpgradeShardManagerKeeper() {
 		return
 	}
 
-	atomic.AddInt32(&ShardManagerKeeper.isResizing, 1)
-
 	// newShardManagerKeeper.mutex.Lock()
 
 	tempNewSM := getNewShardManagerKeeper(ShardManagerKeeper.totalCapacity)
@@ -142,6 +146,8 @@ func UpgradeShardManagerKeeper() {
 	newShardManagerKeeper.usedCapacity = 0
 
 	// newShardManagerKeeper.mutex.Unlock()
+
+	atomic.AddInt32(&ShardManagerKeeper.isResizing, 1)
 	/*
 		TODO: start migrating those keys
 			now we can start migrating those keys somehow, make another go routine for that, which keeps running in the backgroud and does stuff
