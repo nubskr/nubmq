@@ -28,9 +28,10 @@ var HaltSets int32 = 0
 
 // INFO: this is the outermost layer!!
 type ShardManagerKeeperTemp struct {
-	ShardManagers []*ShardManager
-	mutex         sync.RWMutex
-	totalCapacity int64
-	usedCapacity  int64
-	isResizing    int32
+	ShardManagers   []*ShardManager
+	mutex           sync.RWMutex
+	totalCapacity   int64
+	usedCapacity    int64
+	isResizing      int32
+	pendingRequests int32
 }

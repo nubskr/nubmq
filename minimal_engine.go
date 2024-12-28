@@ -18,17 +18,19 @@ ShardManagerKeeper
 
 // init an empty SMkeeper
 var ShardManagerKeeper = ShardManagerKeeperTemp{
-	ShardManagers: make([]*ShardManager, 0),
-	totalCapacity: 0,
-	usedCapacity:  0,
-	isResizing:    0,
+	ShardManagers:   make([]*ShardManager, 0),
+	totalCapacity:   0,
+	usedCapacity:    0,
+	isResizing:      0,
+	pendingRequests: 0,
 }
 
 var newShardManagerKeeper = ShardManagerKeeperTemp{
-	ShardManagers: make([]*ShardManager, 0),
-	totalCapacity: 0,
-	usedCapacity:  0,
-	isResizing:    0,
+	ShardManagers:   make([]*ShardManager, 0),
+	totalCapacity:   0,
+	usedCapacity:    0,
+	isResizing:      0,
+	pendingRequests: 0,
 }
 
 func main() {
