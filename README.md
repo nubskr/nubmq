@@ -1,13 +1,9 @@
 Goal: Outperform rabbitmq in terms of pure throughput without sacrificing reliability in any way 
 
-Issues:
+Issues(non fatal ones):
 
-- CONCURRENT SET OPERATIONS ARE FUCKING SLOW EVEN IN DIFFERENT SHARDS
+- Locks are not optimized enough, things can be tweaked a lot more, they just *work* now, they can be so much faster and better
 
-- WE DONT RESIZE A LOT, BUT WHEN WE FUCKING DO, IT TAKES FOREVER, DONT FUCKING RESIZE WHEN YOU MUST, DO IT IN BACKGROUD WHEN YOU'RE FUCKING FREE AND THEN JUST REPLACE POINTER OR SMTH BRUH
+TODO(fatal stuff):
 
-- Resizes are fucking expensive, minimize the number of times we resize, it locks things down ffs
-
-- SETs are left hanging when we resize, problem
-
-
+- Some get requests are failing, it seems like they keys are just not there in the bucket where they are supposed to be, seems like some gap in our set system which is letting some keys fall through due to concurrency

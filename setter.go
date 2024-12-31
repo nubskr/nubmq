@@ -2,96 +2,86 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"log"
 	"sync/atomic"
-	"unsafe"
 )
 
-/*
-1,2,4,6,8,16,32,64
+func setAtIndex(idx int, key string, val string, keeper *ShardManagerKeeperTemp) {
+	SMidx, localIdx := getShardNumberAndIndexPair(idx)
 
-Changes:
+	keeper.ShardManagers[SMidx].mutex.RLock()
+	targetSM := keeper.ShardManagers[SMidx]
+	keeper.ShardManagers[SMidx].mutex.RUnlock()
 
-whenever we try to set something, we lazily traverse the ShardManagerKeeper for now, if we find the index in there,cool
+	targetSM.mutex.RLock()
+	target := targetSM.Shards[localIdx]
+	targetSM.mutex.RUnlock()
+	value, ok := target.data.Load(key)
 
-if not, we initiate the addition of the next ShardManager with the current size and just wait until we have it
+	// fmt.Println("trying to set at global SM index", SMidx, "at local index", localIdx)
+	if !ok {
+		atomic.AddInt64(&ShardManagerKeeper.usedCapacity, 1)
+	} else {
+		fmt.Println("Ignore this log", value)
+	}
+	target.data.Store(key, val)
+	atomic.AddInt32(&keeper.pendingRequests, -1)
+}
 
-*/
+// force inserts the key in sm without any checks, use with caution
+func forceSetKey(key string, value string, sm *ShardManagerKeeperTemp) {
+	atomic.AddInt32(&sm.pendingRequests, 1)
+	sm.mutex.RLock()
+	setAtIndex(getKeyHash(key, sm), key, value, sm)
+	sm.mutex.RUnlock()
+}
 
 func _setKey(key string, value string) {
-	idx := int32(696969696)
-
-	if value, ok := keyManager.Keys.Load(key); ok {
-		if intValue, ok := value.(int32); ok {
-			idx = int32(intValue)
-		} else {
-			fmt.Println("NOOOOOOOOOOOOOOOOOOOOOO set-x-x-x-x-x-x-x-x-x-x-xx-x-x-x-x-x-x--x", value, "-->")
-			os.Exit(1)
-		}
-	} else {
-		val := atomic.AddInt32(&nextIdx, 1)
-		keyManager.Keys.Store(key, val)
-		idx = val
-	}
-
-	if idx == 696969696 {
-		fmt.Println("trying to set non existing shit")
-		os.Exit(1)
-	}
-
 	/*
-		we need a few things:
-		- SMkeeper index
-		once we find the index, there will me multiple SMs in there, then we need to find the SM index
-		from there we need to find the index of shard where we have that shit, from there, we need to find
-		the index of the value inside that darn shard, how to do this all super duper fucking fast
+		get the key hash and ShardNumber from there
+
+		from that ShardNumber update that value for that Shard
+
+		TODO: check for capacity exceeding desired upper bound and then trigger resizing state
 	*/
 
-	shardNumber := idx / ShardSize
-	localShardIndex := idx % ShardSize
+	// halt to switch tables
+	val1 := atomic.LoadInt32(&HaltSets)
+	if val1 != 1 && val1 != 0 {
+		log.Fatal("The world is ending sire ", val1)
+	}
+	for atomic.LoadInt32(&HaltSets) == 1 {
+		fmt.Println("Sets-----x------Halted----------------------------------")
+	}
 
-	fmt.Println("setting key", key, "at", idx, "at shard number", shardNumber, "at local index", localShardIndex)
+	if atomic.LoadInt32(&ShardManagerKeeper.isResizing) == 0 {
+		atomic.AddInt32(&ShardManagerKeeper.pendingRequests, 1)
+		fmt.Println("inserting in old table")
+		ShardManagerKeeper.mutex.RLock()
 
-	newVal := getNewValueData(value)
-	fmt.Println("trying to acquire lock to set key")
+		setAtIndex(getKeyHash(key, &ShardManagerKeeper), key, value, &ShardManagerKeeper)
 
-	ShardManagerKeeper.mutex.Lock()
+		ShardManagerKeeper.mutex.RUnlock()
 
-	fmt.Println("lock acquired to set key")
-	// TODO: fix the below shit, it should not be this way
-	// fmt.Println("set worker locked acquired")
-	expectedCapacity := getEstimatedCapacityFromShardNumber(int(shardNumber))
-
-	if expectedCapacity > int64(ShardManagerKeeper.capacity) {
-		// do soemthing about it, lmao
-		fmt.Println("++++++++++++++---[Need to Upgrate the SMKeeper to accomodate]---++++++++++++++")
-
-		ShardManagerKeeper.mutex.Unlock()
-
-		UpgradeShardManagerKeeper(shardNumber)
-
-		fmt.Println(ShardManagerKeeper.capacity, expectedCapacity)
-		for atomic.LoadInt32(&ShardManagerKeeper.capacity) < int32(expectedCapacity) {
-			// wait it out
-			//fmt.Println("staring into your soul")
+		if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity)*2 <= atomic.LoadInt64(&ShardManagerKeeper.usedCapacity) { // very hit and miss, will NOT work
+			newShardManagerKeeper.mutex.Lock()
+			migrateOrNot := UpgradeShardManagerKeeper(atomic.LoadInt64(&ShardManagerKeeper.totalCapacity))
+			newShardManagerKeeper.mutex.Unlock()
+			// BUG: this might not be necessary, given that this might be called unnecessarily, note that upgrades are not always needed, look into it, possibly add a condition where we even need to migrate keys
+			if migrateOrNot {
+				fmt.Println("triggering resizing")
+				go migrateKeys(&ShardManagerKeeper, &newShardManagerKeeper)
+			}
 		}
+	} else {
+		atomic.AddInt32(&newShardManagerKeeper.pendingRequests, 1)
+		fmt.Println("inserting in new table")
 
-		ShardManagerKeeper.mutex.Lock()
+		// WARN: the newSMKeeper might not be fully resized at this exact piece of time, stupid concurrency
+		newShardManagerKeeper.mutex.RLock()
+
+		setAtIndex(getKeyHash(key, &newShardManagerKeeper), key, value, &newShardManagerKeeper)
+
+		newShardManagerKeeper.mutex.RUnlock()
 	}
-
-	SMidx := getShardManagerKeeperIndex(int(shardNumber))
-
-	if SMidx == -1 {
-		fmt.Println("we fucked up in resizing sire")
-		os.Exit(1)
-	}
-
-	shard := ShardManagerKeeper.ShardManagers[SMidx].Shards[shardNumber]
-
-	ShardManagerKeeper.mutex.Unlock()
-
-	fmt.Println("set worker locked released")
-
-	// value is a darn string
-	atomic.SwapPointer((*unsafe.Pointer)(unsafe.Pointer(&shard.data[localShardIndex])), unsafe.Pointer(newVal))
 }

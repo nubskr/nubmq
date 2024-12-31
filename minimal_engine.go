@@ -7,11 +7,6 @@ import (
 	"runtime"
 )
 
-// init a thousand shards
-// var shardManager = ShardManager{
-// 	Shards: make([]*Shard, 1000),
-// }
-
 /*
 
 ShardManagerKeeper
@@ -23,8 +18,19 @@ ShardManagerKeeper
 
 // init an empty SMkeeper
 var ShardManagerKeeper = ShardManagerKeeperTemp{
-	ShardManagers: make([]*ShardManager, 0),
-	capacity:      0,
+	ShardManagers:   make([]*ShardManager, 0),
+	totalCapacity:   0,
+	usedCapacity:    0,
+	isResizing:      0,
+	pendingRequests: 0,
+}
+
+var newShardManagerKeeper = ShardManagerKeeperTemp{
+	ShardManagers:   make([]*ShardManager, 0),
+	totalCapacity:   0,
+	usedCapacity:    0,
+	isResizing:      0,
+	pendingRequests: 0,
 }
 
 func main() {
@@ -42,14 +48,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	go nextShardManagerWatcher()
-	// TODO: remove this shit
-
-	// for i := 0; i < 1000; i++ {
-	// 	ShardManagerKeeper.data[0].Shards[i] = getNewShard(ShardSize)
-	// }
+	// go nextShardManagerWatcher()
 
 	fmt.Println("Server listening on :8080")
+
+	// init for 2 now
+	ShardManagerKeeper = *getNewShardManagerKeeper(2)
+	newShardManagerKeeper = *getNewShardManagerKeeper(1)
 
 	for {
 		// Accept connection
