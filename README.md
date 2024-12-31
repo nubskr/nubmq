@@ -2,9 +2,8 @@ Goal: Outperform rabbitmq in terms of pure throughput without sacrificing reliab
 
 Issues(non fatal ones):
 
-- Switches are being triggered a lot more frequently than they need to for some reason
-- Some keys and values are somehow being inserted in both tables, something really weird is happening there for some reason(migration might be the reason btw,maybe we are somehow inserting keys in new table and also migrating them somehow from old to new)
+- Locks are not optimized enough, things can be tweaked a lot more, they just *work* now, they can be so much faster and better
 
 TODO(fatal stuff):
 
-- Data races happen at times, we need more locks at places dumbo
+- Some get requests are failing, it seems like they keys are just not there in the bucket where they are supposed to be, seems like some gap in our set system which is letting some keys fall through due to concurrency

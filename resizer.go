@@ -28,16 +28,12 @@ func getNewShardManagerKeeper(sz int64) *ShardManagerKeeperTemp {
 }
 
 func switchTables(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
-	// time.Sleep(1 * time.Second)
 	for atomic.LoadInt32(&sm2.pendingRequests) != 0 {
-		// fmt.Println(atomic.LoadInt32(&sm2.pendingRequests))
 		fmt.Println("--------------waiting for all requests to be processed----------------")
 	}
 
-	// os.Exit(1)
-
 	if atomic.LoadInt32(&sm2.pendingRequests) != 0 {
-		log.Fatal("WE FUCKED UP SIRE")
+		log.Fatal("WE FUCKED UP SIRE ", atomic.LoadInt32(&sm2.pendingRequests))
 	}
 	// do stuff
 	sm2.mutex.Lock()
@@ -50,20 +46,14 @@ func switchTables(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 
 	// TODO: dereference sm2 and make it point to an empty SMkeeper object
 
-	// sm2 = &ShardManagerKeeperTemp{
-	// 	ShardManagers: nil,
-	// 	totalCapacity: 0,
-	// 	usedCapacity:  0,
-	// 	isResizing:    0,
-	// }
-
 	sm2.mutex.Unlock()
 	sm1.mutex.Unlock()
 
+	// sm2 = getNewShardManagerKeeper(0)
 	// pull the darn cork out
+	atomic.AddInt32(&sm1.isResizing, -1)
 	atomic.AddInt32(&HaltSets, -1)
 	fmt.Println("switched to main sm-----------------------")
-	atomic.AddInt32(&sm1.isResizing, -1)
 }
 
 // migrates all keys from sm1 to sm2
@@ -109,14 +99,14 @@ func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 	go switchTables(sm1, sm2)
 }
 
-// Adds one more layer of SM to SMkeeper
-func UpgradeShardManagerKeeper() {
+// Adds one more layer of SM to newSMkeeper
+func UpgradeShardManagerKeeper(currentSize int64) bool {
 	fmt.Println("UpgradeShardManagerKeeper triggered")
-	if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity)*2 > atomic.LoadInt64(&ShardManagerKeeper.usedCapacity) || atomic.LoadInt32(&ShardManagerKeeper.isResizing) == 1 {
-		return
+	if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity)*2 > atomic.LoadInt64(&ShardManagerKeeper.usedCapacity) || atomic.LoadInt32(&ShardManagerKeeper.isResizing) == 1 || atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) > currentSize {
+		return false
 	}
 
-	tempNewSM := getNewShardManagerKeeper(ShardManagerKeeper.totalCapacity)
+	tempNewSM := getNewShardManagerKeeper(ShardManagerKeeper.totalCapacity * 2)
 
 	newShardManagerKeeper.ShardManagers = tempNewSM.ShardManagers
 	newShardManagerKeeper.totalCapacity = tempNewSM.totalCapacity
@@ -124,4 +114,5 @@ func UpgradeShardManagerKeeper() {
 
 	atomic.AddInt32(&ShardManagerKeeper.isResizing, 1)
 
+	return true
 }

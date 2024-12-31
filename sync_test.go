@@ -14,8 +14,8 @@ import (
 	"time"
 )
 
-var numConnections = 1 // Number of concurrent connections
-var numKeys = 50       // Total number of unique keys
+var numConnections = 50 // Number of concurrent connections
+var numKeys = 500000    // Total number of unique keys
 
 func whatever(shit string) string {
 	if shit == "NaN" {
@@ -207,6 +207,7 @@ func Test_gogo(t *testing.T) {
 			}
 
 			time.Sleep(10 * time.Second) // this should be good enough for the most part
+			// wg.Wait()
 
 			// Phase 2: GET operations
 			for i := startKey; i < endKey; i++ {
