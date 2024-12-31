@@ -4,3 +4,4 @@ pkg
 venv
 *.png
 *.csv
+.DS_Store

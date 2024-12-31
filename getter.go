@@ -2,69 +2,62 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"sync/atomic"
 )
 
-func _getKey(key string) (string, bool) {
-	idx := int32(696969696) // TODO: remove this shit
-
-	if value, ok := keyManager.Keys.Load(key); ok {
-		if intValue, ok := value.(int32); ok {
-			idx = int32(intValue)
-		} else {
-
-			fmt.Println("NOOOOOOOOOOOOOOOOOOOOOO get-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x", value, "-->")
-			os.Exit(1)
-		}
-	} else {
+func getAtIndex(idx int, key string, keeper *ShardManagerKeeperTemp) (string, bool) {
+	// SMidx, localIdx := getShardNumberAndIndexPair(idx)
+	// if SMidx >= len(keeper.ShardManagers) {
+	// 	return "NaN", false
+	// }
+	// target := keeper.ShardManagers[SMidx].Shards[localIdx]
+	SMidx, localIdx := getShardNumberAndIndexPair(idx)
+	keeper.ShardManagers[SMidx].mutex.RLock()
+	if SMidx >= len(keeper.ShardManagers) {
+		keeper.ShardManagers[SMidx].mutex.RUnlock()
+		fmt.Println("Looking too far, not found")
 		return "NaN", false
 	}
+	targetSM := keeper.ShardManagers[SMidx]
+	keeper.ShardManagers[SMidx].mutex.RUnlock()
 
-	if idx == 696969696 {
-		fmt.Println("trying to get non existing shit")
-		os.Exit(1)
+	targetSM.mutex.RLock()
+	target := targetSM.Shards[localIdx]
+	targetSM.mutex.RUnlock()
+	value, ok := target.data.Load(key)
+	if ok {
+		return value.(string), true
+	} else {
+		fmt.Println("just not there man")
+		return "NaN", false
+	}
+}
+
+func _getKey(key string) (string, bool) {
+	// check the new table first then the old one
+	// TODO: can we do something better ? having to check two tables to fulfil one request is slow
+
+	for atomic.LoadInt32(&HaltSets) == 1 {
+		fmt.Println("Sets-----x------Halted----------------------------------")
 	}
 
-	shardNumber := idx / ShardSize
-	//
+	if true {
+		newShardManagerKeeper.mutex.RLock()
+
+		ret, found := getAtIndex(getKeyHash(key, &newShardManagerKeeper), key, &newShardManagerKeeper)
+
+		newShardManagerKeeper.mutex.RUnlock()
+
+		if found {
+			return ret, found
+		}
+	}
 
 	ShardManagerKeeper.mutex.RLock()
 
-	SMidx := getShardManagerKeeperIndex(int(shardNumber))
-
-	if SMidx == -1 {
-		fmt.Println("we fucked up in resizing sire")
-		os.Exit(1)
-	}
-
-	shard := ShardManagerKeeper.ShardManagers[SMidx].Shards[shardNumber]
-	localShardIndex := idx % ShardSize
-
-	if localShardIndex < int32(len(shard.data)) {
-		ShardManagerKeeper.mutex.RUnlock()
-		return (shard.data[localShardIndex]).data, true
-	}
+	ret, found := getAtIndex(getKeyHash(key, &ShardManagerKeeper), key, &ShardManagerKeeper)
 
 	ShardManagerKeeper.mutex.RUnlock()
 
-	return "NaN", false
-
-	//
-
-	// shardManager.mutex.Lock()
-
-	// if shardNumber >= int32(len(shardManager.Shards)) {
-	// 	shardManager.mutex.Unlock()
-	// 	return "", false
-	// }
-
-	// shard := shardManager.Shards[shardNumber]
-	// localShardIndex := idx % ShardSize
-
-	// if localShardIndex < int32(len(shard.data)) {
-	// 	shardManager.mutex.Unlock()
-	// 	return (shard.data[localShardIndex]).data, true
-	// }
-
-	// shardManager.mutex.Unlock()
+	return ret, found
 }

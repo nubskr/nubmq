@@ -1,10 +1,14 @@
 package main
 
-import "math"
+import (
+	"math"
+	"sync"
+)
 
-func getNewShard(sz int32) *Shard {
+func getNewShard() *Shard {
 	return &Shard{
-		data: make([]*ValueData, sz, ShardSize),
+		// data: make([]*ValueData, sz, ShardSize),
+		data: sync.Map{},
 	}
 }
 
@@ -22,31 +26,14 @@ func getNewShardManagerTemplate(sz int) *ShardManager {
 
 // return a new ShardManager with `sz` Shards
 func getNewShardManager(sz int) *ShardManager {
+	// TODO: we can make this faster by parallelising all getNewShard stuffs
 	newSM := getNewShardManagerTemplate(sz)
 
 	for i := 0; i < sz; i++ {
-		newSM.Shards[i] = getNewShard(ShardSize)
+		newSM.Shards[i] = getNewShard()
 	}
 
 	return newSM
-}
-
-func getShardManagerKeeperIndex(pos int) int {
-	// the below thing assuming that there is already a lock placed on SMKeeper
-	sz := len(ShardManagerKeeper.ShardManagers)
-	travTillNow := 0
-	for i := 0; i < sz; i++ {
-
-		// do we need a lock on the below ?
-		curSMsize := len(ShardManagerKeeper.ShardManagers[i].Shards)
-
-		travTillNow += curSMsize
-
-		if travTillNow > pos {
-			return i
-		}
-	}
-	return -1
 }
 
 func getEstimatedCapacityFromShardNumber(shardNumber int) int64 {
@@ -54,11 +41,17 @@ func getEstimatedCapacityFromShardNumber(shardNumber int) int64 {
 }
 
 // TODO: make it faster with binary search
-func getShardNumberAndIndexPair(rawValue int64) (int, int) {
-	// (ShardManagerNumber ,)
+func getShardNumberAndIndexPair(rawidx int) (int, int) {
 	i := 0
-	for getEstimatedCapacityFromShardNumber(i) < int64(rawValue+1) {
+	for getEstimatedCapacityFromShardNumber(i) <= int64(rawidx) {
 		i++
 	}
-	return i, i - 1
+	// now that we have i, find the index it is in
+	var localIdx int = int(rawidx)
+
+	if i > 0 {
+		localIdx = int(int64(rawidx) - getEstimatedCapacityFromShardNumber(i-1))
+	}
+
+	return i, localIdx
 }
