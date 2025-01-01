@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"sync/atomic"
+	"time"
 )
 
 // makes and returns a presized SMkeeper pointer
@@ -28,9 +29,7 @@ func getNewShardManagerKeeper(sz int64) *ShardManagerKeeperTemp {
 }
 
 func switchTables(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
-	switchTablesWG.Add(1)
-	defer switchTablesWG.Done()
-
+	defer UpgradeProcessWG.Done()
 	SetWG.Wait()
 	for atomic.LoadInt32(&sm2.pendingRequests) != 0 {
 		log.Fatal("lol, get rekt idiot")
@@ -54,36 +53,39 @@ func switchTables(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 	// sm2 = getNewShardManagerKeeper(0)
 	// pull the darn cork out
 	atomic.AddInt32(&sm1.isResizing, -1)
-	atomic.AddInt32(&HaltSets, -1)
-	UpgradeProcessWG.Done()
+	// atomic.AddInt32(&HaltSets, -1)
+	HaltSetsMutex.Lock()
+	HaltSets = 0
+	HaltSetsMutex.Unlock()
+
+	// UpgradeProcessWG.Done()
 	fmt.Println("switched to main sm-----------------------")
 }
 
 // migrates all keys from sm1 to sm2
 func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
-
-	// migrateKeysWG.Add(1)
-	// defer migrateKeysWG.Done()
-
-	if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity)*2 > atomic.LoadInt64(&ShardManagerKeeper.usedCapacity) {
+	sm1.mutex.Lock()
+	if sm1.totalCapacity*2 > sm1.usedCapacity {
+		sm1.mutex.Unlock()
+		log.Fatal("IDIOTTTTTT")
 		return
 	}
+	sm1.mutex.Unlock()
 
 	log.Print("Migrating keys in")
-	/*
 
-		ShardManagerKeeper
-			ShardManager..1.2.3..
-				Shard..1.2.3..
-					ValueData
+	HaltSetsMutex.Lock()
+	HaltSets = 1
+	HaltSetsMutex.Unlock()
+	log.Print("Sets halted,waiting for existing sets to complete")
 
-	*/
-
-	atomic.AddInt32(&HaltSets, 1)
+	// this sleep helps avoid those corner scenarios where a set is added right after wait() is over
+	time.Sleep(3 * time.Millisecond) // TODO: please find a better way to do this thing ffs, something event based maybe ?
 
 	SetWG.Wait() // wait for sets in sm1 to settle down
 
-	sm1.mutex.Lock()
+	log.Print("pending sets completed")
+	sm1.mutex.RLock()
 	fmt.Println("Migrating Keys start---------------")
 	for _, SM := range sm1.ShardManagers {
 		for _, Shard := range SM.Shards {
@@ -97,39 +99,28 @@ func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 
 			for k, v := range pairs {
 				// sm2.mutex.RLock()
-				fmt.Println("Migrating key", k, "value", v)
+				fmt.Println("Migrating key", k)
 				SetWG.Add(1)
-				go forceSetKey(k.(string), v.(string), sm2)
+				forceSetKey(k.(string), v.(string), sm2)
 				// sm2.mutex.RUnlock()
 			}
 		}
 		// time.Sleep(1 * time.Microsecond) // TODO: please find a better way to do this thing ffs
 	}
 
-	sm1.mutex.Unlock()
-
-	SetWG.Wait() // maybe let all migrations end first ?
-
+	sm1.mutex.RUnlock()
 	fmt.Println("Migrating Keys end-----------------")
 
-	// TODO: UNCOMMENT BELOW STUFF, YOU NEED IT, debugging rn
-
-	// atomic.AddInt32(&HaltSets, 1)
-
-	switchTablesWG.Wait()
-	go switchTables(sm1, sm2)
+	switchTables(sm1, sm2)
 }
 
-// Adds one more layer of SM to newSMkeeper
-// BUG: this shit is returning true more often than it needs to
-
 func UpgradeShardManagerKeeper(currentSize int64) bool {
-	// A LOT OF THIS ARE BEING TRIGGERED PARALLELY, ITS NOT FUCKING THREAD SAFE, ATOMIC IS FUCKING RISKY DUMBO
 	SMUpgradeMutex.Lock()
 	defer SMUpgradeMutex.Unlock()
 
 	fmt.Println("UpgradeShardManagerKeeper triggered")
 	if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity)*2 > atomic.LoadInt64(&ShardManagerKeeper.usedCapacity) || atomic.LoadInt32(&ShardManagerKeeper.isResizing) == 1 || atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) > currentSize {
+		fmt.Println("False alarm, skipping upgrade")
 		return false
 	}
 

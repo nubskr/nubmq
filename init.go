@@ -42,3 +42,4 @@ var migrateKeysWG sync.WaitGroup
 var UpgradeProcessWG sync.WaitGroup
 
 var SMUpgradeMutex sync.RWMutex
+var HaltSetsMutex sync.RWMutex

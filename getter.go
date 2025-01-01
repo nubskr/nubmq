@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"sync/atomic"
 )
 
 func getAtIndex(idx int, key string, keeper *ShardManagerKeeperTemp) (string, bool) {
@@ -37,9 +36,9 @@ func _getKey(key string) (string, bool) {
 	// check the new table first then the old one
 	// TODO: can we do something better ? having to check two tables to fulfil one request is slow
 
-	for atomic.LoadInt32(&HaltSets) == 1 {
-		fmt.Println("Sets-----x------Halted----------------------------------")
-	}
+	// for atomic.LoadInt32(&HaltSets) == 1 {
+	// 	fmt.Println("Sets-----x------Halted----------------------------------")
+	// }
 
 	if true {
 		newShardManagerKeeper.mutex.RLock()

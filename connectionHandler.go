@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"time"
 )
 
 func handleConnection(conn net.Conn) {
@@ -23,6 +24,18 @@ func handleConnection(conn net.Conn) {
 		stringData := strings.Fields(data)
 
 		if stringData[0] == "SET" {
+			// I DON'T LIKE THIS AT ALL, THIS POLLING IS SLOWING US DOWN, THIS IS FUCKING EXISTENTIAL
+			for {
+				HaltSetsMutex.RLock()
+				if HaltSets == 0 {
+					HaltSetsMutex.RUnlock()
+					break
+				}
+				HaltSetsMutex.RUnlock()
+
+				time.Sleep(1 * time.Microsecond)
+			}
+
 			SetWG.Add(1)
 			_setKey(stringData[1], stringData[2])
 			_, err := conn.Write([]byte(fmt.Sprint("SET done\n")))
