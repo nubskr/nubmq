@@ -35,3 +35,10 @@ type ShardManagerKeeperTemp struct {
 	isResizing      int32
 	pendingRequests int32
 }
+
+var SetWG sync.WaitGroup
+var switchTablesWG sync.WaitGroup
+var migrateKeysWG sync.WaitGroup
+var UpgradeProcessWG sync.WaitGroup
+
+var SMUpgradeMutex sync.RWMutex

@@ -26,10 +26,18 @@ func setAtIndex(idx int, key string, val string, keeper *ShardManagerKeeperTemp)
 	}
 	target.data.Store(key, val)
 	atomic.AddInt32(&keeper.pendingRequests, -1)
+	SetWG.Done()
 }
 
 // force inserts the key in sm without any checks, use with caution
 func forceSetKey(key string, value string, sm *ShardManagerKeeperTemp) {
+	// if atomic.LoadInt32(&HaltSets) == 1 {
+	// 	log.Fatal("The world is ending sire forcedddd", atomic.LoadInt32(&HaltSets))
+	// }
+	// for atomic.LoadInt32(&HaltSets) == 1 {
+	// 	fmt.Println("ForcedSets-----x------Halted----------------------------------")
+	// }
+
 	atomic.AddInt32(&sm.pendingRequests, 1)
 	sm.mutex.RLock()
 	setAtIndex(getKeyHash(key, sm), key, value, sm)
@@ -37,6 +45,9 @@ func forceSetKey(key string, value string, sm *ShardManagerKeeperTemp) {
 }
 
 func _setKey(key string, value string) {
+	if atomic.LoadInt32(&ShardManagerKeeper.isResizing) != 0 && atomic.LoadInt32(&ShardManagerKeeper.isResizing) != 1 {
+		log.Fatal("GGWP")
+	}
 	/*
 		get the key hash and ShardNumber from there
 
@@ -51,8 +62,10 @@ func _setKey(key string, value string) {
 		log.Fatal("The world is ending sire ", val1)
 	}
 	for atomic.LoadInt32(&HaltSets) == 1 {
-		fmt.Println("Sets-----x------Halted----------------------------------")
+		// fmt.Println("Sets-----x------Halted----------------------------------")
 	}
+
+	// SetWG.Add(1)
 
 	if atomic.LoadInt32(&ShardManagerKeeper.isResizing) == 0 {
 		atomic.AddInt32(&ShardManagerKeeper.pendingRequests, 1)
@@ -69,6 +82,8 @@ func _setKey(key string, value string) {
 			newShardManagerKeeper.mutex.Unlock()
 			// BUG: this might not be necessary, given that this might be called unnecessarily, note that upgrades are not always needed, look into it, possibly add a condition where we even need to migrate keys
 			if migrateOrNot {
+				UpgradeProcessWG.Wait()
+				UpgradeProcessWG.Add(1)
 				fmt.Println("triggering resizing")
 				go migrateKeys(&ShardManagerKeeper, &newShardManagerKeeper)
 			}

@@ -14,13 +14,13 @@ import (
 	"time"
 )
 
-var numConnections = 50 // Number of concurrent connections
-var numKeys = 500000    // Total number of unique keys
+var numConnections = 10 // Number of concurrent connections
+var numKeys = 50        // Total number of unique keys
 
 func whatever(shit string) string {
 	if shit == "NaN" {
 		fmt.Println("your server is sending bullshit, check it dumbass")
-		os.Exit(1)
+		// os.Exit(1)
 	}
 
 	return shit

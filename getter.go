@@ -28,7 +28,7 @@ func getAtIndex(idx int, key string, keeper *ShardManagerKeeperTemp) (string, bo
 	if ok {
 		return value.(string), true
 	} else {
-		fmt.Println("just not there man")
+		fmt.Println("just not there man", key)
 		return "NaN", false
 	}
 }

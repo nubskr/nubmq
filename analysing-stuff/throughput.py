@@ -34,7 +34,7 @@ if __name__ == "__main__":
     csv_file = 'top_set_durations.csv'
     
     # Number of concurrent connections (as per your configuration)
-    concurrent_connections = 50
+    concurrent_connections = 100
     
     calculate_throughput(csv_file, concurrent_connections)
 

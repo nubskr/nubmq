@@ -23,6 +23,7 @@ func handleConnection(conn net.Conn) {
 		stringData := strings.Fields(data)
 
 		if stringData[0] == "SET" {
+			SetWG.Add(1)
 			_setKey(stringData[1], stringData[2])
 			_, err := conn.Write([]byte(fmt.Sprint("SET done\n")))
 
