@@ -48,8 +48,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// go nextShardManagerWatcher()
-
 	fmt.Println("Server listening on :8080")
 
 	// init for 2 now
