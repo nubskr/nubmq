@@ -48,13 +48,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// go nextShardManagerWatcher()
-
 	fmt.Println("Server listening on :8080")
 
 	// init for 2 now
 	ShardManagerKeeper = *getNewShardManagerKeeper(2)
 	newShardManagerKeeper = *getNewShardManagerKeeper(1)
+
+	for i := 1; i <= MaxConcurrentClients; i++ {
+		go handleSetWorker()
+	}
 
 	for {
 		// Accept connection

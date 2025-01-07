@@ -6,7 +6,8 @@ import (
 	"sync/atomic"
 )
 
-func setAtIndex(idx int, key string, val string, keeper *ShardManagerKeeperTemp) {
+func setAtIndex(idx int, key string, val string, keeper *ShardManagerKeeperTemp, request SetRequest) {
+	defer SetWG.Done()
 	SMidx, localIdx := getShardNumberAndIndexPair(idx)
 
 	keeper.ShardManagers[SMidx].mutex.RLock()
@@ -18,70 +19,79 @@ func setAtIndex(idx int, key string, val string, keeper *ShardManagerKeeperTemp)
 	targetSM.mutex.RUnlock()
 	value, ok := target.data.Load(key)
 
-	// fmt.Println("trying to set at global SM index", SMidx, "at local index", localIdx)
 	if !ok {
 		atomic.AddInt64(&ShardManagerKeeper.usedCapacity, 1)
 	} else {
 		fmt.Println("Ignore this log", value)
 	}
 	target.data.Store(key, val)
-	atomic.AddInt32(&keeper.pendingRequests, -1)
+	request.status <- struct{}{}
+}
+
+func setAtIndexLazy(idx int, key string, val string, keeper *ShardManagerKeeperTemp) {
+	defer SetWG.Done()
+	SMidx, localIdx := getShardNumberAndIndexPair(idx)
+
+	keeper.ShardManagers[SMidx].mutex.RLock()
+	targetSM := keeper.ShardManagers[SMidx]
+	keeper.ShardManagers[SMidx].mutex.RUnlock()
+
+	targetSM.mutex.RLock()
+	target := targetSM.Shards[localIdx]
+	targetSM.mutex.RUnlock()
+	value, ok := target.data.Load(key)
+
+	if !ok {
+		atomic.AddInt64(&ShardManagerKeeper.usedCapacity, 1)
+	} else {
+		fmt.Println("Ignore this log", value)
+	}
+	target.data.Store(key, val)
 }
 
 // force inserts the key in sm without any checks, use with caution
 func forceSetKey(key string, value string, sm *ShardManagerKeeperTemp) {
-	atomic.AddInt32(&sm.pendingRequests, 1)
-	sm.mutex.RLock()
-	setAtIndex(getKeyHash(key, sm), key, value, sm)
-	sm.mutex.RUnlock()
+	setAtIndexLazy(getKeyHash(key, sm), key, value, sm)
 }
 
-func _setKey(key string, value string) {
-	/*
-		get the key hash and ShardNumber from there
-
-		from that ShardNumber update that value for that Shard
-
-		TODO: check for capacity exceeding desired upper bound and then trigger resizing state
-	*/
-
-	// halt to switch tables
-	val1 := atomic.LoadInt32(&HaltSets)
-	if val1 != 1 && val1 != 0 {
-		log.Fatal("The world is ending sire ", val1)
-	}
-	for atomic.LoadInt32(&HaltSets) == 1 {
-		fmt.Println("Sets-----x------Halted----------------------------------")
-	}
-
+func _setKey(request SetRequest) {
+	key := request.key
+	value := request.value
 	if atomic.LoadInt32(&ShardManagerKeeper.isResizing) == 0 {
-		atomic.AddInt32(&ShardManagerKeeper.pendingRequests, 1)
-		fmt.Println("inserting in old table")
+		// fmt.Println("inserting in old table key: ", key)
 		ShardManagerKeeper.mutex.RLock()
 
-		setAtIndex(getKeyHash(key, &ShardManagerKeeper), key, value, &ShardManagerKeeper)
+		setAtIndex(getKeyHash(key, &ShardManagerKeeper), key, value, &ShardManagerKeeper, request)
 
 		ShardManagerKeeper.mutex.RUnlock()
 
 		if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity)*2 <= atomic.LoadInt64(&ShardManagerKeeper.usedCapacity) { // very hit and miss, will NOT work
-			newShardManagerKeeper.mutex.Lock()
-			migrateOrNot := UpgradeShardManagerKeeper(atomic.LoadInt64(&ShardManagerKeeper.totalCapacity))
-			newShardManagerKeeper.mutex.Unlock()
-			// BUG: this might not be necessary, given that this might be called unnecessarily, note that upgrades are not always needed, look into it, possibly add a condition where we even need to migrate keys
+
+			ShardManagerKeeper.mutex.Lock()
+			migrateOrNot := UpgradeShardManagerKeeper(ShardManagerKeeper.totalCapacity)
+			ShardManagerKeeper.mutex.Unlock()
+
 			if migrateOrNot {
-				fmt.Println("triggering resizing")
+				// fmt.Println("triggering resizing")
 				go migrateKeys(&ShardManagerKeeper, &newShardManagerKeeper)
 			}
 		}
 	} else {
-		atomic.AddInt32(&newShardManagerKeeper.pendingRequests, 1)
-		fmt.Println("inserting in new table")
+		// fmt.Println("inserting in new table key: ", key)
 
-		// WARN: the newSMKeeper might not be fully resized at this exact piece of time, stupid concurrency
 		newShardManagerKeeper.mutex.RLock()
 
-		setAtIndex(getKeyHash(key, &newShardManagerKeeper), key, value, &newShardManagerKeeper)
+		setAtIndex(getKeyHash(key, &newShardManagerKeeper), key, value, &newShardManagerKeeper, request)
 
 		newShardManagerKeeper.mutex.RUnlock()
+	}
+}
+
+func handleSetWorker() {
+	log.Print("Worker started")
+
+	for {
+		setReq := <-setQueue
+		_setKey(setReq)
 	}
 }
