@@ -24,20 +24,36 @@ func handleConnection(conn net.Conn) {
 		stringData := strings.Fields(data)
 
 		if stringData[0] == "SET" {
-			// I DON'T LIKE THIS AT ALL, THIS POLLING IS SLOWING US DOWN, THIS IS FUCKING EXISTENTIAL
-			for {
-				HaltSetsMutex.RLock()
-				if HaltSets == 0 {
-					HaltSetsMutex.RUnlock()
-					break
-				}
-				HaltSetsMutex.RUnlock()
-
-				time.Sleep(1 * time.Microsecond)
+			// handleSets(stringData[1], stringData[2])
+			curReq := SetRequest{
+				key:    stringData[1],
+				value:  stringData[2],
+				status: make(chan struct{}),
 			}
 
+			// wait for the HaltSet mode to be over
+			// HaltSetsMutex.Lock()
+			// for HaltSets == 1 {
+			// 	log.Print("SETS HALTED")
+			// 	HaltSetcond.Wait()
+			// }
+
+			// HaltSetsMutex.Unlock()
+
+			allowSets.Lock()
 			SetWG.Add(1)
-			_setKey(stringData[1], stringData[2])
+			setQueue <- curReq
+			allowSets.Unlock()
+
+			// wait for the acknowledgement for this request
+			select {
+			case <-curReq.status:
+			// fmt.Printf("Producer %d: Task %d processed!\n")
+			case <-time.After(1 * time.Second): // Timeout in case of delay
+				// fmt.Printf("Producer %d: Task %d processing timeout!\n", id, i)
+				log.Fatal("BAD WORKER, SET REQUEST TIMED OUT FOR KEY: ", curReq.key)
+			}
+
 			_, err := conn.Write([]byte(fmt.Sprint("SET done\n")))
 
 			if err != nil {

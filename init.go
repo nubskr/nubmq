@@ -36,10 +36,19 @@ type ShardManagerKeeperTemp struct {
 	pendingRequests int32
 }
 
+type SetRequest struct {
+	key    string
+	value  string
+	status chan struct{}
+}
+
+var MaxConcurrentClients int = 50
+var setQueue chan SetRequest = make(chan SetRequest, MaxConcurrentClients)
+
 var SetWG sync.WaitGroup
-var switchTablesWG sync.WaitGroup
-var migrateKeysWG sync.WaitGroup
-var UpgradeProcessWG sync.WaitGroup
 
 var SMUpgradeMutex sync.RWMutex
 var HaltSetsMutex sync.RWMutex
+
+var HaltSetcond = sync.NewCond(&HaltSetsMutex)
+var allowSets sync.Mutex

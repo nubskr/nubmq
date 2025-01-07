@@ -56,6 +56,10 @@ func main() {
 	ShardManagerKeeper = *getNewShardManagerKeeper(2)
 	newShardManagerKeeper = *getNewShardManagerKeeper(1)
 
+	for i := 1; i <= MaxConcurrentClients; i++ {
+		go handleSetWorker()
+	}
+
 	for {
 		// Accept connection
 		conn, err := ln.Accept()
