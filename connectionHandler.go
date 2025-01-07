@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"time"
 )
 
 func handleConnection(conn net.Conn) {
@@ -23,7 +24,23 @@ func handleConnection(conn net.Conn) {
 		stringData := strings.Fields(data)
 
 		if stringData[0] == "SET" {
-			_setKey(stringData[1], stringData[2])
+			curReq := SetRequest{
+				key:    stringData[1],
+				value:  stringData[2],
+				status: make(chan struct{}),
+			}
+
+			allowSets.Lock()
+			SetWG.Add(1)
+			allowSets.Unlock()
+			setQueue <- curReq
+
+			select {
+			case <-curReq.status:
+			case <-time.After(2 * time.Second): // Timeout in case of delay
+				log.Fatal("BAD WORKER, SET REQUEST TIMED OUT FOR KEY: ", curReq.key)
+			}
+
 			_, err := conn.Write([]byte(fmt.Sprint("SET done\n")))
 
 			if err != nil {

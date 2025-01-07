@@ -30,4 +30,3 @@ plot_durations('./top_set_durations.csv', 'Top 10 Max SET Response Times', './to
 plot_durations('./top_get_durations.csv', 'Top 10 Max GET Response Times', './top_get_durations.png')
 
 print("Plots have been saved as 'top_set_durations.png' and 'top_get_durations.png'.")
-

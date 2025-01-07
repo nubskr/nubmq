@@ -12,12 +12,6 @@ func getNewShard() *Shard {
 	}
 }
 
-func getNewValueData(value string) *ValueData {
-	return &ValueData{
-		data: value,
-	}
-}
-
 func getNewShardManagerTemplate(sz int) *ShardManager {
 	return &ShardManager{
 		Shards: make([]*Shard, sz),
@@ -40,18 +34,22 @@ func getEstimatedCapacityFromShardNumber(shardNumber int) int64 {
 	return int64(math.Pow(2, float64(shardNumber+1))) - 1
 }
 
-// TODO: make it faster with binary search
 func getShardNumberAndIndexPair(rawidx int) (int, int) {
-	i := 0
-	for getEstimatedCapacityFromShardNumber(i) <= int64(rawidx) {
-		i++
+	low, high := 0, rawidx
+	for low < high {
+		mid := low + (high-low)/2
+		if getEstimatedCapacityFromShardNumber(mid) > int64(rawidx) {
+			high = mid
+		} else {
+			low = mid + 1
+		}
 	}
-	// now that we have i, find the index it is in
-	var localIdx int = int(rawidx)
 
-	if i > 0 {
-		localIdx = int(int64(rawidx) - getEstimatedCapacityFromShardNumber(i-1))
+	// `low` is now the shard number
+	localIdx := rawidx
+	if low > 0 {
+		localIdx = int(int64(rawidx) - getEstimatedCapacityFromShardNumber(low-1))
 	}
 
-	return i, localIdx
+	return low, localIdx
 }
