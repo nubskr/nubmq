@@ -92,6 +92,7 @@ func handleSetWorker() {
 
 	for {
 		setReq := <-setQueue
+		// log.Print("picked from queue")
 		_setKey(setReq)
 	}
 }

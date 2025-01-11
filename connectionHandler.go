@@ -9,10 +9,25 @@ import (
 )
 
 func handleConnection(conn net.Conn) {
-	fmt.Println("Client connected")
+	defer log.Print("Connection terminated due to inactivity")
+	defer activeConns.Store(conn.RemoteAddr(), false)
+	fmt.Println("routine launched")
 	buffer := make([]byte, 1024)
+
 	for {
+		err := conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+		if err != nil {
+			// return 0, fmt.Errorf("failed to set read deadline: %w", err)
+			log.Fatal("Failed to set read deadline")
+		}
+
 		length, err := conn.Read(buffer)
+
+		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			// exit the goroutine, connection has been dead for a while
+			// log.Fatal("go routine terminated")
+			return
+		}
 
 		if err != nil {
 			fmt.Println("an error occured while reading message:", err)

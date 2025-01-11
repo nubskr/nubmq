@@ -42,7 +42,7 @@ type SetRequest struct {
 	status chan struct{}
 }
 
-var MaxConcurrentClients int = 50
+var MaxConcurrentClients int = 10
 var setQueue chan SetRequest = make(chan SetRequest, MaxConcurrentClients)
 
 var SetWG sync.WaitGroup
@@ -52,3 +52,5 @@ var HaltSetsMutex sync.RWMutex
 
 var HaltSetcond = sync.NewCond(&HaltSetsMutex)
 var allowSets sync.Mutex
+
+var activeConns sync.Map
