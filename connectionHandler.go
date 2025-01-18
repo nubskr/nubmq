@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -20,14 +21,40 @@ func handleConnection(conn net.Conn) {
 		}
 
 		data := string(buffer[:length])
+		log.Print("Received from client: ", data)
 
 		stringData := strings.Fields(data)
 
+		/*
+			SET key value EX time_in_seconds
+			 0	 1    2	    3	  4
+		*/
+
 		if stringData[0] == "SET" {
 			curReq := SetRequest{
-				key:    stringData[1],
-				value:  stringData[2],
-				status: make(chan struct{}),
+				key:       stringData[1],
+				value:     stringData[2],
+				canExpire: false,
+				TTL:       time.Now().Unix(), // just let it be for now
+				status:    make(chan struct{}),
+			}
+			if len(stringData) == 5 {
+
+				parsedTime, err := strconv.ParseInt(stringData[4], 10, 64)
+
+				log.Print("========Parsed time is: ", parsedTime)
+				if err != nil {
+					log.Fatal("Error parsing time:", err)
+				}
+
+				curReq = SetRequest{
+					key:       stringData[1],
+					value:     stringData[2],
+					canExpire: true,
+					TTL:       parsedTime,
+					status:    make(chan struct{}),
+				}
+			} else {
 			}
 
 			allowSets.Lock()
@@ -53,7 +80,7 @@ func handleConnection(conn net.Conn) {
 			if exists {
 
 			}
-			_, err := conn.Write([]byte(fmt.Sprint(output + "\n"))) // Send message over connection
+			_, err := conn.Write([]byte(fmt.Sprint(output + "\n")))
 
 			if err != nil {
 			} else {

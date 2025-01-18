@@ -20,7 +20,8 @@ func getAtIndex(idx int, key string, keeper *ShardManagerKeeperTemp) (string, bo
 	targetSM.mutex.RUnlock()
 	value, ok := target.data.Load(key)
 	if ok {
-		return value.(string), true
+		entry := (value.(Entry)).value
+		return entry, true
 	} else {
 		fmt.Println("just not there man", key)
 		return "NaN", false

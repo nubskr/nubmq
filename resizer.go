@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"sync/atomic"
+	"time"
 )
 
 // makes and returns a presized SMkeeper pointer
@@ -42,6 +43,7 @@ func switchTables(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 	sm1.totalCapacity = sm2.totalCapacity
 	sm1.usedCapacity = sm2.usedCapacity // this won't be accurate btw, since sets are still in pipeline
 
+	log.Print("tables switched, sm1 total capacity changed to: ", sm1.totalCapacity, sm2.totalCapacity)
 	sm2.mutex.RUnlock()
 	sm1.mutex.Unlock()
 
@@ -52,14 +54,25 @@ func switchTables(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 
 }
 
+func getNewRequest(targetKey string, entry Entry) SetRequest {
+	return SetRequest{
+		key:       targetKey,
+		value:     entry.value,
+		canExpire: entry.canExpire,
+		TTL:       entry.TTL,
+		// status:    make(chan struct{}),
+	}
+}
+
 // migrates all keys from sm1 to sm2
 func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
-	// log.Print("Starting to migrate keys")
-	if (atomic.LoadInt64(&sm1.totalCapacity))*int64(2) > atomic.LoadInt64(&sm1.usedCapacity) {
-		sm1.mutex.Unlock()
-		log.Fatal("IDIOTTTTTT")
-		return
-	}
+	log.Print("Starting to migrate keys")
+
+	// if (atomic.LoadInt64(&sm1.totalCapacity))*int64(2) > atomic.LoadInt64(&sm1.usedCapacity) {
+	// 	sm1.mutex.Unlock()
+	// 	log.Fatal("IDIOTTTTTT")
+	// 	return
+	// }
 
 	// log.Print("Migrating keys in")
 
@@ -77,17 +90,23 @@ func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 			pairs := make(map[interface{}]interface{})
 
 			Shard.data.Range(func(key, value interface{}) bool {
-				pairs[key] = value
+				entryVal := value.(Entry)
+				if entryVal.canExpire && entryVal.TTL < time.Now().Unix() {
+					// expired key, skipping
+					log.Print("We found an expired key sire: ", key)
+				} else {
+					pairs[key] = getNewRequest(key.(string), entryVal)
+				}
 				return true
 			})
 
 			// log.Print("Trying to get inside read lock on new table")
 			for k, v := range pairs {
 				// TODO: should we use SetQueue here too ?
-				// fmt.Println("Migrating key", k)
+				log.Print("Migrating key", k)
 				sm2.mutex.RLock()
 				SetWG.Add(1)
-				forceSetKey(k.(string), v.(string), sm2)
+				forceSetKey(v.(SetRequest), sm2)
 				sm2.mutex.RUnlock()
 			}
 		}
@@ -100,6 +119,7 @@ func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 }
 
 func UpgradeShardManagerKeeper(currentSize int64) bool {
+	// log.Fatal("don't upgrade rn")
 	// fmt.Println("UpgradeShardManagerKeeper triggered")
 	if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity)*2 > atomic.LoadInt64(&ShardManagerKeeper.usedCapacity) || atomic.LoadInt32(&ShardManagerKeeper.isResizing) != 0 || atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) > currentSize {
 		// fmt.Println("False alarm, skipping upgrade")
@@ -107,6 +127,30 @@ func UpgradeShardManagerKeeper(currentSize int64) bool {
 	}
 
 	tempNewSM := getNewShardManagerKeeper(ShardManagerKeeper.totalCapacity * 2)
+	log.Print("new sm size is: ", tempNewSM.totalCapacity)
+
+	newShardManagerKeeper.mutex.Lock()
+	newShardManagerKeeper.ShardManagers = tempNewSM.ShardManagers
+	newShardManagerKeeper.totalCapacity = tempNewSM.totalCapacity
+	newShardManagerKeeper.usedCapacity = 0
+	newShardManagerKeeper.mutex.Unlock()
+
+	atomic.AddInt32(&ShardManagerKeeper.isResizing, 1)
+
+	return true
+}
+
+// this will get triggered when a bunch of keys expire and we're simply overaccomodating space
+func DowngradeShardManagerKeeper(currentSize int64, twichinessFactor int64) bool {
+	log.Print(ShardManagerKeeper.totalCapacity, atomic.LoadInt64(&ShardManagerKeeper.usedCapacity))
+	if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) < 2 || atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) < atomic.LoadInt64(&ShardManagerKeeper.usedCapacity)*twichinessFactor || atomic.LoadInt32(&ShardManagerKeeper.isResizing) != 0 || atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) < currentSize {
+		fmt.Println("False alarm, skipping downgrade")
+		return false
+	}
+
+	log.Print("We trippin, changing size to: ", ShardManagerKeeper.totalCapacity/2, " from: ", ShardManagerKeeper.totalCapacity)
+
+	tempNewSM := getNewShardManagerKeeper(ShardManagerKeeper.totalCapacity / 2)
 
 	newShardManagerKeeper.mutex.Lock()
 	newShardManagerKeeper.ShardManagers = tempNewSM.ShardManagers
