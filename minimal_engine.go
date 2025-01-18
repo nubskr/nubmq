@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"runtime"
+	"time"
 )
 
 /*
@@ -34,6 +36,8 @@ var newShardManagerKeeper = ShardManagerKeeperTemp{
 }
 
 func main() {
+	log.SetOutput(io.Discard)
+
 	fasttttt := true
 
 	// fasttttt = false
@@ -49,9 +53,10 @@ func main() {
 	}
 
 	fmt.Println("Server listening on :8080")
+	log.Print(time.Now())
 
 	// init for 2 now
-	ShardManagerKeeper = *getNewShardManagerKeeper(2)
+	ShardManagerKeeper = *getNewShardManagerKeeper(1)
 	newShardManagerKeeper = *getNewShardManagerKeeper(1)
 
 	for i := 1; i <= MaxConcurrentClients; i++ {

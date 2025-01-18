@@ -1,6 +1,8 @@
 package main
 
-import "sync"
+import (
+	"sync"
+)
 
 type Message struct {
 	data      string
@@ -37,12 +39,20 @@ type ShardManagerKeeperTemp struct {
 }
 
 type SetRequest struct {
-	key    string
-	value  string
-	status chan struct{}
+	key       string
+	value     string
+	canExpire bool
+	TTL       int64
+	status    chan struct{}
 }
 
-var MaxConcurrentClients int = 50
+type Entry struct {
+	value     string
+	canExpire bool
+	TTL       int64
+}
+
+var MaxConcurrentClients int = 25
 var setQueue chan SetRequest = make(chan SetRequest, MaxConcurrentClients)
 
 var SetWG sync.WaitGroup
