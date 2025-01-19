@@ -7,7 +7,6 @@ import (
 
 func getNewShard() *Shard {
 	return &Shard{
-		// data: make([]*ValueData, sz, ShardSize),
 		data: sync.Map{},
 	}
 }
@@ -20,7 +19,7 @@ func getNewShardManagerTemplate(sz int) *ShardManager {
 
 // return a new ShardManager with `sz` Shards
 func getNewShardManager(sz int) *ShardManager {
-	// TODO: we can make this faster by parallelising all getNewShard stuffs
+	// TODO: can make this faster by parallelising all getNewShard stuffs
 	newSM := getNewShardManagerTemplate(sz)
 
 	for i := 0; i < sz; i++ {
@@ -45,7 +44,6 @@ func getShardNumberAndIndexPair(rawidx int) (int, int) {
 		}
 	}
 
-	// `low` is now the shard number
 	localIdx := rawidx
 	if low > 0 {
 		localIdx = int(int64(rawidx) - getEstimatedCapacityFromShardNumber(low-1))
