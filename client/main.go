@@ -61,11 +61,8 @@ func main() {
 				log.Fatal("Error converting string to integer:", err)
 			} else {
 			}
-			// curTime := time.Now()
 
 			fmeBro := strconv.FormatInt(int64(time.Now().Unix()+int64(intValue)), 10)
-
-			// fmeBro := curTime.Add(time.Duration(intValue) * time.Second).String()
 
 			finalString := ""
 

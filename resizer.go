@@ -12,11 +12,10 @@ func getNewShardManagerKeeper(sz int64) *ShardManagerKeeperTemp {
 	curSz := 1
 
 	var newSMkeeper = ShardManagerKeeperTemp{
-		ShardManagers:   make([]*ShardManager, 0),
-		totalCapacity:   0,
-		usedCapacity:    0,
-		isResizing:      0,
-		pendingRequests: 0,
+		ShardManagers: make([]*ShardManager, 0),
+		totalCapacity: 0,
+		usedCapacity:  0,
+		isResizing:    0,
 	}
 
 	for newSMkeeper.totalCapacity < sz {
@@ -31,10 +30,6 @@ func getNewShardManagerKeeper(sz int64) *ShardManagerKeeperTemp {
 func switchTables(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 	defer allowSets.Unlock()
 	SetWG.Wait()
-	for atomic.LoadInt32(&sm2.pendingRequests) != 0 {
-		log.Fatal("lol, get rekt idiot")
-		fmt.Println("--------------waiting for all requests to be processed----------------")
-	}
 
 	sm2.mutex.RLock()
 	sm1.mutex.Lock()
@@ -47,7 +42,6 @@ func switchTables(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 	sm2.mutex.RUnlock()
 	sm1.mutex.Unlock()
 
-	// pull the darn cork out
 	atomic.AddInt32(&sm1.isResizing, -1)
 	// fmt.Println("switched to main sm-----------------------")
 	// sm1 and sm2 point to the same memory location now
@@ -60,7 +54,6 @@ func getNewRequest(targetKey string, entry Entry) SetRequest {
 		value:     entry.value,
 		canExpire: entry.canExpire,
 		TTL:       entry.TTL,
-		// status:    make(chan struct{}),
 	}
 }
 
@@ -119,7 +112,6 @@ func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 }
 
 func UpgradeShardManagerKeeper(currentSize int64) bool {
-	// log.Fatal("don't upgrade rn")
 	// fmt.Println("UpgradeShardManagerKeeper triggered")
 	if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity)*2 > atomic.LoadInt64(&ShardManagerKeeper.usedCapacity) || atomic.LoadInt32(&ShardManagerKeeper.isResizing) != 0 || atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) > currentSize {
 		// fmt.Println("False alarm, skipping upgrade")
@@ -147,8 +139,6 @@ func DowngradeShardManagerKeeper(currentSize int64, twichinessFactor int64) bool
 		fmt.Println("False alarm, skipping downgrade")
 		return false
 	}
-
-	log.Print("We trippin, changing size to: ", ShardManagerKeeper.totalCapacity/2, " from: ", ShardManagerKeeper.totalCapacity)
 
 	tempNewSM := getNewShardManagerKeeper(ShardManagerKeeper.totalCapacity / 2)
 
