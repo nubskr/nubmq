@@ -4,11 +4,17 @@ import (
 	"sync"
 )
 
-var MaxConcurrentClients int = 25
+var MaxConcurrentCoreWorkers int = 25
+var EVENT_NOTIFICATION_BUFFER int = 10000000 // WARN: magic number lmao, need it to avoid blocking connection reads in the core engine
 
-var setQueue chan SetRequest = make(chan SetRequest, MaxConcurrentClients)
+var setQueue chan SetRequest = make(chan SetRequest, MaxConcurrentCoreWorkers)
 var SetWG sync.WaitGroup
 var allowSets sync.Mutex
+
+var Subscribers map[string][]*chan string // key -> SubscriberWriteSecondaryChannels
+var SubscribersMutex sync.Mutex
+
+var EventQueue chan Entry = make(chan Entry, EVENT_NOTIFICATION_BUFFER)
 
 // TODO: sync map too hardcode and abstracted for my taste
 type Shard struct {
@@ -36,7 +42,18 @@ type SetRequest struct {
 	status    chan struct{}
 }
 
+// net.Conn(*net.TCPConn) *{conn: net.conn {fd: *(*net.netFD)(0x14000142100)}}
+// type Connection struct {
+// }
+
+/*
+map conn to the WriteChannel
+
+map topic to Subs slice for pub sub
+*/
+
 type Entry struct {
+	key       string
 	value     string
 	canExpire bool
 	TTL       int64

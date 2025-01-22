@@ -9,9 +9,34 @@ import (
 	"time"
 )
 
+func WriteStuffToConn(conn net.Conn, stuff string) {
+	_, err := conn.Write([]byte(fmt.Sprint(stuff + "\n")))
+
+	if err != nil {
+		log.Print("failed to reply message:", err)
+	}
+}
+
 func handleConnection(conn net.Conn) {
 	fmt.Println("Client connected")
 	buffer := make([]byte, 1024)
+
+	writeChanPrimary := make(chan string, 10)
+	writeChanSecondary := make(chan string, 100)
+
+	// Writer
+	go func(conn net.Conn) {
+		// we have a hierarchy, like, SET and GET replies get higher priority than say Event Notifications
+		for {
+			select {
+			case val := <-writeChanPrimary:
+				WriteStuffToConn(conn, val)
+			case val := <-writeChanSecondary:
+				WriteStuffToConn(conn, val)
+			}
+		}
+	}(conn)
+
 	for {
 		length, err := conn.Read(buffer)
 
@@ -38,6 +63,13 @@ func handleConnection(conn net.Conn) {
 				TTL:       time.Now().Unix(), // just let it be for now
 				status:    make(chan struct{}),
 			}
+
+			entry := Entry{
+				key:   stringData[1],
+				value: stringData[2],
+			}
+
+			EventQueue <- entry
 			if len(stringData) == 5 {
 
 				parsedTime, err := strconv.ParseInt(stringData[4], 10, 64)
@@ -54,7 +86,6 @@ func handleConnection(conn net.Conn) {
 					TTL:       parsedTime,
 					status:    make(chan struct{}),
 				}
-			} else {
 			}
 
 			allowSets.Lock()
@@ -68,23 +99,24 @@ func handleConnection(conn net.Conn) {
 				log.Fatal("BAD WORKER, SET REQUEST TIMED OUT FOR KEY: ", curReq.key)
 			}
 
-			_, err := conn.Write([]byte(fmt.Sprint("SET done\n")))
+			writeChanPrimary <- "SET done"
 
-			if err != nil {
-				log.Println("failed to reply message:", err)
-			} else {
-			}
-		} else {
-			output, exists := _getKey(stringData[1])
+		} else if stringData[0] == "GET" {
+			res, exists := _getKey(stringData[1])
 
 			if exists {
-
-			}
-			_, err := conn.Write([]byte(fmt.Sprint(output + "\n")))
-
-			if err != nil {
+				writeChanPrimary <- res
 			} else {
+				log.Fatal("tf just happened here")
 			}
+		} else if stringData[0] == "SUBSCRIBE" {
+			key := stringData[1]
+
+			SubscribersMutex.Lock()
+			Subscribers[key] = append(Subscribers[key], &writeChanSecondary)
+			SubscribersMutex.Unlock()
+			writeChanSecondary <- "SUBSCRIBED TO CHANNEL"
+		} else {
 		}
 	}
 }

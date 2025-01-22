@@ -37,9 +37,12 @@ func main() {
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	for i := 1; i <= MaxConcurrentClients; i++ {
+	Subscribers = make(map[string][]*chan string)
+	for i := 1; i <= MaxConcurrentCoreWorkers; i++ {
 		go handleSetWorker()
 	}
+
+	go evenNotificationHandler()
 
 	ln, err := net.Listen("tcp", ":8080")
 
