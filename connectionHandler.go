@@ -4,13 +4,39 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
 
+func WriteStuffToConn(conn net.Conn, stuff string) {
+	_, err := conn.Write([]byte(fmt.Sprint(stuff + "\n")))
+
+	if err != nil {
+		log.Print("failed to reply message:", err)
+	}
+}
+
 func handleConnection(conn net.Conn) {
 	fmt.Println("Client connected")
 	buffer := make([]byte, 1024)
+
+	writeChanPrimary := make(chan string, 10)
+	writeChanSecondary := make(chan string, 100)
+
+	// Writer
+	go func(conn net.Conn) {
+		// we have a hierarchy, like, SET and GET replies get higher priority than say Event Notifications
+		for {
+			select {
+			case val := <-writeChanPrimary:
+				WriteStuffToConn(conn, val)
+			case val := <-writeChanSecondary:
+				WriteStuffToConn(conn, val)
+			}
+		}
+	}(conn)
+
 	for {
 		length, err := conn.Read(buffer)
 
@@ -20,14 +46,46 @@ func handleConnection(conn net.Conn) {
 		}
 
 		data := string(buffer[:length])
+		log.Print("Received from client: ", data)
 
 		stringData := strings.Fields(data)
 
+		/*
+			SET key value EX time_in_seconds
+			 0	 1    2	    3	  4
+		*/
+
 		if stringData[0] == "SET" {
 			curReq := SetRequest{
-				key:    stringData[1],
-				value:  stringData[2],
-				status: make(chan struct{}),
+				key:       stringData[1],
+				value:     stringData[2],
+				canExpire: false,
+				TTL:       time.Now().Unix(), // just let it be for now
+				status:    make(chan struct{}),
+			}
+
+			entry := Entry{
+				key:   stringData[1],
+				value: stringData[2],
+			}
+
+			EventQueue <- entry
+			if len(stringData) == 5 {
+
+				parsedTime, err := strconv.ParseInt(stringData[4], 10, 64)
+
+				log.Print("========Parsed time is: ", parsedTime)
+				if err != nil {
+					log.Fatal("Error parsing time:", err)
+				}
+
+				curReq = SetRequest{
+					key:       stringData[1],
+					value:     stringData[2],
+					canExpire: true,
+					TTL:       parsedTime,
+					status:    make(chan struct{}),
+				}
 			}
 
 			allowSets.Lock()
@@ -41,23 +99,24 @@ func handleConnection(conn net.Conn) {
 				log.Fatal("BAD WORKER, SET REQUEST TIMED OUT FOR KEY: ", curReq.key)
 			}
 
-			_, err := conn.Write([]byte(fmt.Sprint("SET done\n")))
+			writeChanPrimary <- "SET done"
 
-			if err != nil {
-				log.Println("failed to reply message:", err)
-			} else {
-			}
-		} else {
-			output, exists := _getKey(stringData[1])
+		} else if stringData[0] == "GET" {
+			res, exists := _getKey(stringData[1])
 
 			if exists {
-
-			}
-			_, err := conn.Write([]byte(fmt.Sprint(output + "\n"))) // Send message over connection
-
-			if err != nil {
+				writeChanPrimary <- res
 			} else {
+				log.Fatal("tf just happened here")
 			}
+		} else if stringData[0] == "SUBSCRIBE" {
+			key := stringData[1]
+
+			SubscribersMutex.Lock()
+			Subscribers[key] = append(Subscribers[key], &writeChanSecondary)
+			SubscribersMutex.Unlock()
+			writeChanSecondary <- "SUBSCRIBED TO CHANNEL"
+		} else {
 		}
 	}
 }

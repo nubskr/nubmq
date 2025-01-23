@@ -1,54 +1,60 @@
 package main
 
-import "sync"
+import (
+	"sync"
+)
 
-type Message struct {
-	data      string
-	timestamp int64
-}
+var MaxConcurrentCoreWorkers int = 25
+var EVENT_NOTIFICATION_BUFFER int = 10000000 // WARN: magic number lmao, need it to avoid blocking connection reads in the core engine
 
-type ValueData struct {
-	data  string
-	mutex sync.RWMutex
-}
+var setQueue chan SetRequest = make(chan SetRequest, MaxConcurrentCoreWorkers)
+var SetWG sync.WaitGroup
+var allowSets sync.Mutex
 
-// I know abstractions bad, but let it be for now, already too much complexity in life
+var Subscribers map[string][]*chan string // key -> SubscriberWriteSecondaryChannels
+var SubscribersMutex sync.Mutex
+
+var EventQueue chan Entry = make(chan Entry, EVENT_NOTIFICATION_BUFFER)
+
+// TODO: sync map too hardcode and abstracted for my taste
 type Shard struct {
 	data sync.Map
-	size int32
 }
 
 type ShardManager struct {
-	Shards []*Shard // pointers to shards
+	Shards []*Shard
 	mutex  sync.RWMutex
 }
 
-var ShardSize int32 = 1
-var HaltSets int32 = 0
-
-// INFO: this is the outermost layer!!
 type ShardManagerKeeperTemp struct {
-	ShardManagers   []*ShardManager
-	mutex           sync.RWMutex
-	totalCapacity   int64
-	usedCapacity    int64
-	isResizing      int32
-	pendingRequests int32
+	ShardManagers []*ShardManager
+	mutex         sync.RWMutex
+	totalCapacity int64
+	usedCapacity  int64
+	isResizing    int32
 }
 
 type SetRequest struct {
-	key    string
-	value  string
-	status chan struct{}
+	key       string
+	value     string
+	canExpire bool
+	TTL       int64
+	status    chan struct{}
 }
 
-var MaxConcurrentClients int = 50
-var setQueue chan SetRequest = make(chan SetRequest, MaxConcurrentClients)
+// net.Conn(*net.TCPConn) *{conn: net.conn {fd: *(*net.netFD)(0x14000142100)}}
+// type Connection struct {
+// }
 
-var SetWG sync.WaitGroup
+/*
+map conn to the WriteChannel
 
-var SMUpgradeMutex sync.RWMutex
-var HaltSetsMutex sync.RWMutex
+map topic to Subs slice for pub sub
+*/
 
-var HaltSetcond = sync.NewCond(&HaltSetsMutex)
-var allowSets sync.Mutex
+type Entry struct {
+	key       string
+	value     string
+	canExpire bool
+	TTL       int64
+}
