@@ -53,8 +53,9 @@ map topic to Subs slice for pub sub
 */
 
 type Entry struct {
-	key       string
-	value     string
-	canExpire bool
-	TTL       int64
+	key           string
+	value         string
+	canExpire     bool
+	TTL           int64
+	isExpiryEvent bool
 }

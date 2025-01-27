@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"runtime"
@@ -33,16 +32,19 @@ var newShardManagerKeeper = ShardManagerKeeperTemp{
 }
 
 func main() {
-	log.SetOutput(io.Discard)
+	// log.SetOutput(io.Discard)
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	Subscribers = make(map[string][]*chan string)
+
 	for i := 1; i <= MaxConcurrentCoreWorkers; i++ {
 		go handleSetWorker()
 	}
 
-	go evenNotificationHandler()
+	go HandleKeyTTLInsertion(&SetContainer, &UpdateChan)
+	go HandleKeyTTLEviction(&SetContainer, &UpdateChan, &EventQueue)
+	go eventNotificationHandler()
 
 	ln, err := net.Listen("tcp", ":8080")
 

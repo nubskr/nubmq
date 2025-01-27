@@ -70,6 +70,7 @@ func handleConnection(conn net.Conn) {
 			}
 
 			EventQueue <- entry
+
 			if len(stringData) == 5 {
 
 				parsedTime, err := strconv.ParseInt(stringData[4], 10, 64)
@@ -78,6 +79,14 @@ func handleConnection(conn net.Conn) {
 				if err != nil {
 					log.Fatal("Error parsing time:", err)
 				}
+
+				// canExpire     bool
+				// TTL           int64
+				// isExpiryEvent bool
+				entry.canExpire = true
+				entry.TTL = parsedTime
+
+				SetContainer.queue <- entry // handles TTL notifications
 
 				curReq = SetRequest{
 					key:       stringData[1],
