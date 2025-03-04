@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"encoding/csv"
+	"encoding/gob"
 	"fmt"
 	"log"
 	"net"
@@ -22,70 +22,42 @@ func whatever(shit string) string {
 		fmt.Println("your server is sending bullshit, check it dumbass")
 		// os.Exit(1)
 	}
-
 	return shit
 }
 
-// Helper function to read the next valid response, ignoring lines starting with "GET"
-func readValidResponse(reader *bufio.Reader) (string, error) {
+// readValidResponse now reads from a Gob decoder instead of a bufio.Reader
+func readValidResponse(dec *gob.Decoder) (string, error) {
 	for {
-		response, err := reader.ReadString('\n')
-		if err != nil {
+		var response string
+		if err := dec.Decode(&response); err != nil {
 			return "", err
 		}
 		response = strings.TrimSpace(response)
+		// Ignore strings that start with "GET"
 		if strings.HasPrefix(response, "GET") {
-			// Unexpected echo of the GET command, ignore and continue reading
 			continue
 		}
 		return whatever(response), nil
 	}
 }
 
-func _readValidResponse(reader *bufio.Reader) (string, error) {
+func _readValidResponse(dec *gob.Decoder) (string, error) {
 	for {
-		response, err := reader.ReadString('\n')
-		if err != nil {
+		var response string
+		if err := dec.Decode(&response); err != nil {
 			return "", err
 		}
 		response = strings.TrimSpace(response)
+		// Ignore strings that start with "GET" or "SET"
 		if strings.HasPrefix(response, "GET") {
-			// Unexpected echo of the GET command, ignore and continue reading
 			continue
 		}
 		if strings.HasPrefix(response, "SET") {
-			// Unexpected echo of the GET command, ignore and continue reading
 			continue
 		}
 		return whatever(response), nil
 	}
 }
-
-// func writeDurationsToCSV(filename string, durations []time.Duration) error {
-// 	file, err := os.Create(filename)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer file.Close()
-
-// 	writer := csv.NewWriter(file)
-// 	defer writer.Flush()
-
-// 	// Write header
-// 	writer.Write([]string{"Rank", "Duration_ms"})
-
-// 	// Write data
-// 	for i, duration := range durations {
-// 		record := []string{
-// 			fmt.Sprintf("%d", i+1),
-// 			fmt.Sprintf("%.3f", duration.Seconds()*1000), // Convert to milliseconds
-// 		}
-// 		if err := writer.Write(record); err != nil {
-// 			return err
-// 		}
-// 	}
-// 	return nil
-// }
 
 func writeDurationsToCSV(filename string, durations []time.Duration) error {
 	file, err := os.Create(filename)
@@ -101,7 +73,6 @@ func writeDurationsToCSV(filename string, durations []time.Duration) error {
 	writer.Write([]string{"Rank", "Duration_ms"})
 
 	// Write data
-
 	for i, duration := range durations {
 		durationInMs := float64(duration.Nanoseconds()) / 1e6 // Convert nanoseconds to milliseconds
 		record := []string{
@@ -112,7 +83,6 @@ func writeDurationsToCSV(filename string, durations []time.Duration) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -137,7 +107,7 @@ func Test_gogo(t *testing.T) {
 		values[i] = fmt.Sprintf("value%d", i)
 	}
 
-	// Slice to collect SET and GET responses
+	// Slices to collect SET and GET responses
 	setResponses := make([][]string, numConnections)
 	getResponses := make([][]string, numConnections)
 	for i := 0; i < numConnections; i++ {
@@ -151,8 +121,6 @@ func Test_gogo(t *testing.T) {
 
 	// Start all connections and perform SET and GET operations sequentially
 	for connIdx := 0; connIdx < numConnections; connIdx++ {
-		// time.Sleep(1 * time.Second)
-		// time.Sleep(2 * time.Second)
 		go func(connIdx int) {
 			defer wg.Done()
 
@@ -169,8 +137,10 @@ func Test_gogo(t *testing.T) {
 				}
 				return
 			}
-			// Note: Do not defer conn.Close() to keep connections open
-			reader := bufio.NewReader(conn)
+			// Create a Gob encoder/decoder on the connection
+			enc := gob.NewEncoder(conn)
+			dec := gob.NewDecoder(conn)
+			// We do not close conn here; it remains open
 
 			// Handle assigned keys
 			startKey := connIdx * keysPerConn
@@ -185,16 +155,15 @@ func Test_gogo(t *testing.T) {
 				// Record start time
 				startTime := time.Now()
 
-				// Send SET command
-				_, err := fmt.Fprintf(conn, "%s\n", setCommand)
-				if err != nil {
+				// Send SET command via Gob
+				if err := enc.Encode(setCommand); err != nil {
 					fmt.Printf("[SET][Connection %d] Error sending SET command for '%s': %v\n", connIdx, key, err)
 					setResponses[connIdx][i-startKey] = fmt.Sprintf("Error: %v", err)
 					continue
 				}
 
-				// Wait for SET response
-				response, err := readValidResponse(reader)
+				// Wait for SET response via Gob
+				response, err := readValidResponse(dec)
 				if err != nil {
 					fmt.Printf("[SET][Connection %d] Error reading SET response for '%s': %v\n", connIdx, key, err)
 					setResponses[connIdx][i-startKey] = fmt.Sprintf("Error: %v", err)
@@ -206,8 +175,7 @@ func Test_gogo(t *testing.T) {
 				setResponses[connIdx][i-startKey] = fmt.Sprintf("Response: %s (Time: %v)", response, duration)
 			}
 
-			time.Sleep(3 * time.Second) // this should be good enough for the most part
-			// wg.Wait()
+			time.Sleep(3 * time.Second) // Wait before GET operations
 
 			// Phase 2: GET operations
 			for i := startKey; i < endKey; i++ {
@@ -217,16 +185,15 @@ func Test_gogo(t *testing.T) {
 				// Record start time
 				startTime := time.Now()
 
-				// Send GET command
-				_, err := fmt.Fprintf(conn, "%s\n", getCommand)
-				if err != nil {
+				// Send GET command via Gob
+				if err := enc.Encode(getCommand); err != nil {
 					fmt.Printf("[GET][Connection %d] Error sending GET command for '%s': %v\n", connIdx, key, err)
 					getResponses[connIdx][i-startKey] = fmt.Sprintf("Error: %v", err)
 					continue
 				}
 
-				// Wait for GET response
-				response, err := _readValidResponse(reader)
+				// Wait for GET response via Gob
+				response, err := _readValidResponse(dec)
 				if err != nil {
 					fmt.Printf("[GET][Connection %d] Error reading GET response for '%s': %v\n", connIdx, key, err)
 					getResponses[connIdx][i-startKey] = fmt.Sprintf("Error: %v", err)
@@ -238,7 +205,7 @@ func Test_gogo(t *testing.T) {
 				getResponses[connIdx][i-startKey] = fmt.Sprintf("Response: %s (Time: %v)", response, duration)
 			}
 
-			// Connection remains open here; do not close it
+			// We do not close conn here; it stays open until program exit
 		}(connIdx)
 	}
 
@@ -271,51 +238,13 @@ func Test_gogo(t *testing.T) {
 	fmt.Printf("Total SET Commands: %d\n", numKeys)
 	fmt.Printf("Total GET Commands: %d\n", numKeys)
 
-	// // Calculate average SET and GET response times
-	// var totalSetTime time.Duration
-	// var totalGetTime time.Duration
-
-	// for connIdx := 0; connIdx < numConnections; connIdx++ {
-	// 	for keyIdx := 0; keyIdx < keysPerConn; keyIdx++ {
-	// 		// Parse durations from SET responses
-	// 		setResp := setResponses[connIdx][keyIdx]
-	// 		if strings.Contains(setResp, "(Time: ") {
-	// 			parts := strings.Split(setResp, "(Time: ")
-	// 			if len(parts) == 2 {
-	// 				timeStr := strings.TrimSuffix(parts[1], ")")
-	// 				duration, err := time.ParseDuration(timeStr)
-	// 				if err == nil {
-	// 					totalSetTime += duration
-	// 				}
-	// 			}
-	// 		}
-
-	// 		// Parse durations from GET responses
-	// 		getResp := getResponses[connIdx][keyIdx]
-	// 		if strings.Contains(getResp, "(Time: ") {
-	// 			parts := strings.Split(getResp, "(Time: ")
-	// 			if len(parts) == 2 {
-	// 				timeStr := strings.TrimSuffix(parts[1], ")")
-	// 				duration, err := time.ParseDuration(timeStr)
-	// 				if err == nil {
-	// 					totalGetTime += duration
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }
-
-	// avgSetTime := totalSetTime / time.Duration(numKeys)
-	// avgGetTime := totalGetTime / time.Duration(numKeys)
-
-	// fmt.Printf("Average SET Response Time: %v\n", avgSetTime)
-	// fmt.Printf("Average GET Response Time: %v\n", avgGetTime)
 	var totalSetTime time.Duration
 	var totalGetTime time.Duration
 
 	var setDurations []time.Duration
 	var getDurations []time.Duration
 
+	// Parse the durations
 	for connIdx := 0; connIdx < numConnections; connIdx++ {
 		for keyIdx := 0; keyIdx < keysPerConn; keyIdx++ {
 			// Parse durations from SET responses
@@ -355,19 +284,17 @@ func Test_gogo(t *testing.T) {
 	sort.Slice(setDurations, func(i, j int) bool {
 		return setDurations[i] < setDurations[j]
 	})
-
 	sort.Slice(getDurations, func(i, j int) bool {
 		return getDurations[i] < getDurations[j]
 	})
 
-	// Get the top 10 max SET durations
+	// Decide how many top durations to print and write
 	topN := 1000000000
 	if len(setDurations) < topN {
 		topN = len(setDurations)
 	}
 	topSetDurations := setDurations[len(setDurations)-topN:]
 
-	// Get the top 10 max GET durations
 	if len(getDurations) < topN {
 		topN = len(getDurations)
 	}
@@ -375,13 +302,10 @@ func Test_gogo(t *testing.T) {
 
 	fmt.Printf("Average SET Response Time: %v\n", avgSetTime)
 	fmt.Printf("Top %d Max SET Response Times:\n", len(topSetDurations))
-
-	// var sumShit float64 = 0.0
-
-	for i := len(topSetDurations) - 1; i >= 0; i-- {
-		// sumShit += float64(topSetDurations[i])
-		// fmt.Printf("%v\n", topSetDurations[i])
-	}
+	// (Printing commented out in original code, so we keep it that way)
+	// for i := len(topSetDurations) - 1; i >= 0; i-- {
+	// 	fmt.Printf("%v\n", topSetDurations[i])
+	// }
 
 	// Write SET durations to CSV
 	if err := writeDurationsToCSV("./analysing-stuff/top_set_durations.csv", topSetDurations); err != nil {
@@ -393,6 +317,4 @@ func Test_gogo(t *testing.T) {
 	// for i := len(topGetDurations) - 1; i >= 0; i-- {
 	// 	fmt.Printf("%v\n", topGetDurations[i])
 	// }
-
-	// Note: Connections are kept open and will be closed when the program exits
 }

@@ -2,11 +2,7 @@ Goal: Be a beast outperforming everything that comes in its way
 
 # TODO:
 
-## Core engine changes:
-- Optimize for speed
-
 ## New feats:
-- key expiry event notifs(tricky)
 
 Problem:
 
@@ -24,4 +20,8 @@ SET <key> <value> EX <expiry_time_in_seconds>
 GET <key>
 
 SUBSCRIBE <key_name>
+
+BATCH <int> 
 ```
+
+for `BATCH <int>` we expect int amount of requests to come just after this and we don't process any of them for that conn untill the int runs out , then we process them send them all at once in FIFO order, only works for SET operations right now

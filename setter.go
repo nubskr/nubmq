@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"sync/atomic"
+	"time"
 )
 
 func setAtIndex(idx int, keeper *ShardManagerKeeperTemp, request SetRequest) {
@@ -27,7 +27,7 @@ func setAtIndex(idx int, keeper *ShardManagerKeeperTemp, request SetRequest) {
 	if !ok {
 		atomic.AddInt64(&keeper.usedCapacity, 1)
 	} else {
-		fmt.Println("Ignore this log", value)
+		log.Print("Ignore this log", value)
 	}
 	entry := Entry{
 		value:     val,
@@ -36,6 +36,9 @@ func setAtIndex(idx int, keeper *ShardManagerKeeperTemp, request SetRequest) {
 	}
 
 	target.data.Store(key, entry)
+	// os.Exit(1)
+	request.OutTime = time.Now()
+	LogRequest(request.InTime, request.OutTime)
 	request.status <- struct{}{}
 }
 
@@ -59,7 +62,7 @@ func setAtIndexLazy(idx int, keeper *ShardManagerKeeperTemp, request SetRequest)
 	if !ok {
 		atomic.AddInt64(&keeper.usedCapacity, 1)
 	} else {
-		fmt.Println("Ignore this log", value)
+		log.Print("Ignore this log", value)
 	}
 	entry := Entry{
 		value:     val,
@@ -76,8 +79,8 @@ func forceSetKey(request SetRequest, sm *ShardManagerKeeperTemp) {
 }
 
 func _setKey(request SetRequest) {
-	defer log.Print("Used capacity changed to: ", atomic.LoadInt64(&ShardManagerKeeper.usedCapacity))
-	defer log.Print("Total capacity changed to: ", atomic.LoadInt64(&ShardManagerKeeper.totalCapacity))
+	// defer log.Print("Used capacity changed to: ", atomic.LoadInt64(&ShardManagerKeeper.usedCapacity))
+	// defer log.Print("Total capacity changed to: ", atomic.LoadInt64(&ShardManagerKeeper.totalCapacity))
 	key := request.key
 	if atomic.LoadInt32(&ShardManagerKeeper.isResizing) == 0 {
 		log.Print("inserting in old table key: ", key)

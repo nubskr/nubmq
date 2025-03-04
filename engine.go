@@ -1,10 +1,15 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	_ "net/http/pprof"
+	"os"
 	"runtime"
+	"sync"
 )
 
 /*
@@ -31,13 +36,42 @@ var newShardManagerKeeper = ShardManagerKeeperTemp{
 	isResizing:    0,
 }
 
-func main() {
-	// log.SetOutput(io.Discard)
+var logChannel = make(chan [3]string, 1000000) // Buffer for async logging
 
+func init() {
+	go func() {
+		file, _ := os.OpenFile("LOG.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		defer file.Close()
+		writer := csv.NewWriter(file)
+		defer writer.Flush()
+
+		for entry := range logChannel {
+			writer.Write(entry[:])
+			writer.Flush()
+		}
+	}()
+}
+
+func main() {
+	log.SetOutput(io.Discard)
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	Subscribers = make(map[string][]*chan string)
+	// defer func() {
+	// 	f, err := os.Create("profile.prof")
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	defer f.Close()
+	// 	pprof.WriteHeapProfile(f) // Change this to StartCPUProfile if you want CPU usage instead
+	// }()
+	// go func() {
+	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
+	// }()
 
+	Subscribers = make(map[string][]*chan string)
+	ConnContextMap = sync.Map{}
+
+	// go actuallyDoStuff()
 	for i := 1; i <= MaxConcurrentCoreWorkers; i++ {
 		go handleSetWorker()
 	}
@@ -63,7 +97,15 @@ func main() {
 			log.Println(err)
 			continue
 		}
-
+		newConnection := Connection{
+			conn:      conn,
+			batchSize: 1,
+			Batch:     make([]SetRequest, 0),
+		}
+		// this is not a critical async area right ?
+		// ConnContextMap[conn] = &newConnection
+		// sync.Map
+		ConnContextMap.Store(conn, newConnection)
 		go handleConnection(conn)
 	}
 }

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"net"
 	"sync"
+	"time"
 )
 
-var MaxConcurrentCoreWorkers int = 25
+var MaxConcurrentCoreWorkers int = 50
 var EVENT_NOTIFICATION_BUFFER int = 10000000 // WARN: magic number lmao, need it to avoid blocking connection reads in the core engine
 
 var setQueue chan SetRequest = make(chan SetRequest, MaxConcurrentCoreWorkers)
@@ -12,6 +14,7 @@ var SetWG sync.WaitGroup
 var allowSets sync.Mutex
 
 var Subscribers map[string][]*chan string // key -> SubscriberWriteSecondaryChannels
+var ConnContextMap sync.Map               // do we need mutex to protect this thing ? idk
 var SubscribersMutex sync.Mutex
 
 var EventQueue chan Entry = make(chan Entry, EVENT_NOTIFICATION_BUFFER)
@@ -39,6 +42,8 @@ type SetRequest struct {
 	value     string
 	canExpire bool
 	TTL       int64
+	InTime    time.Time
+	OutTime   time.Time
 	status    chan struct{}
 }
 
@@ -58,4 +63,10 @@ type Entry struct {
 	canExpire     bool
 	TTL           int64
 	isExpiryEvent bool
+}
+
+type Connection struct {
+	conn      net.Conn
+	batchSize uint32
+	Batch     []SetRequest
 }

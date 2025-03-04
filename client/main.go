@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/gob"
 	"fmt"
 	"log"
 	"net"
@@ -11,15 +12,20 @@ import (
 	"time"
 )
 
+type Message struct {
+	data any
+}
+
 func reader(conn net.Conn, msgQueue chan string) {
-	buffer := make([]byte, 1024)
+	dec := gob.NewDecoder(conn)
 	for {
-		n, err := conn.Read(buffer)
+		var message string
+		err := dec.Decode(&message)
 		if err != nil {
-			log.Fatal("failed to read data from conn:", err)
+			log.Fatal("failed to decode message:", err)
 		}
-		msgData := string(buffer[:n])
-		msgQueue <- msgData
+		log.Print("XXXXXX, new stuff received: ", message)
+		msgQueue <- message
 	}
 }
 
@@ -38,7 +44,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	msgQueue := make(chan string)
+	msgQueue := make(chan string, 100000)
 	go reader(conn, msgQueue)
 	go ShowMessages(msgQueue)
 
@@ -76,7 +82,13 @@ func main() {
 
 		log.Print("sending this shit: ", stuff)
 
-		_, err = conn.Write([]byte(stuff))
+		message := stuff
+
+		enc := gob.NewEncoder(conn)
+		err = enc.Encode(message)
+		if err != nil {
+			log.Fatal("Error encoding message:", err)
+		}
 		if err != nil {
 			log.Fatal("Error writing to connection:", err)
 		}
