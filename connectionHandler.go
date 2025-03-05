@@ -17,6 +17,14 @@ func WriteStuffToConn(conn net.Conn, stuff string) {
 	}
 }
 
+// func PrintTotalTimeTaken() {
+// 	for {
+// 		time.Sleep(25 * time.Second)
+// 		fmt.Print(atomic.LoadInt64(&EndTime) - atomic.LoadInt64(&StartTime))
+// 		panic("lol")
+// 	}
+// }
+
 func handleConnection(conn net.Conn) {
 	fmt.Println("Client connected")
 	buffer := make([]byte, 1024)
@@ -49,6 +57,7 @@ func handleConnection(conn net.Conn) {
 		log.Print("Received from client: ", data)
 
 		stringData := strings.Fields(data)
+		// startTime := time.Now()
 
 		/*
 			SET key value EX time_in_seconds
@@ -69,7 +78,7 @@ func handleConnection(conn net.Conn) {
 				value: stringData[2],
 			}
 
-			EventQueue <- entry
+			// EventQueue <- entry
 
 			if len(stringData) == 5 {
 
@@ -104,6 +113,8 @@ func handleConnection(conn net.Conn) {
 
 			select {
 			case <-curReq.status:
+				// endTime := time.Now()
+				// atomic.AddInt64(&TotalTimeTaken, endTime.Sub(startTime).Microseconds())
 			case <-time.After(2 * time.Second): // Timeout in case of delay
 				log.Fatal("BAD WORKER, SET REQUEST TIMED OUT FOR KEY: ", curReq.key)
 			}

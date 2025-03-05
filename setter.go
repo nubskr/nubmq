@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"sync/atomic"
 )
@@ -27,7 +26,7 @@ func setAtIndex(idx int, keeper *ShardManagerKeeperTemp, request SetRequest) {
 	if !ok {
 		atomic.AddInt64(&keeper.usedCapacity, 1)
 	} else {
-		fmt.Println("Ignore this log", value)
+		log.Print("Ignore this log", value)
 	}
 	entry := Entry{
 		value:     val,
@@ -59,7 +58,7 @@ func setAtIndexLazy(idx int, keeper *ShardManagerKeeperTemp, request SetRequest)
 	if !ok {
 		atomic.AddInt64(&keeper.usedCapacity, 1)
 	} else {
-		fmt.Println("Ignore this log", value)
+		log.Print("Ignore this log", value)
 	}
 	entry := Entry{
 		value:     val,
