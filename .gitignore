@@ -3,4 +3,5 @@ hello
 pkg
 venv
 *.out
+*.csv
 .DS_Store

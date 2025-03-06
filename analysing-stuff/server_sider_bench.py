@@ -1,26 +1,22 @@
 import csv
-import numpy as np
 import datetime
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
-def read_durations_with_timestamps(csv_file_path):
-    durations = []
+def read_timestamps(csv_file_path):
     timestamps = []
     
     with open(csv_file_path, mode='r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             try:
-                duration_ms = float(row['Duration_ms'])
                 timestamp_ms = int(row['Timestamp_ms'])  # Read timestamp in milliseconds
                 timestamp_sec = timestamp_ms / 1000  # Convert to seconds
-                durations.append(duration_ms)
                 timestamps.append(timestamp_sec)
             except ValueError:
                 print(f"Invalid data row: {row}")
 
-    return timestamps, durations
+    return timestamps
 
 def calculate_throughput_over_time(timestamps):
     if not timestamps:
@@ -36,19 +32,7 @@ def calculate_throughput_over_time(timestamps):
 
     return throughput_per_second
 
-def calculate_latency_distribution(durations):
-    if not durations:
-        print("No valid durations found for percentile calculation.")
-        return
-
-    percentiles = [50, 75, 90, 95, 97, 98, 99, 99.5, 99.9]
-    percentile_values = np.percentile(durations, percentiles)
-
-    print("\n[Latency Percentile Distribution (Combined SET + GET)]")
-    for p, value in zip(percentiles, percentile_values):
-        print(f"{p}th Percentile: {value:.6f} ms")
-
-def plot_nicer_throughput_graph(throughput_data):
+def plot_throughput_graph(throughput_data):
     if not throughput_data:
         print("No throughput data to plot.")
         return
@@ -65,7 +49,7 @@ def plot_nicer_throughput_graph(throughput_data):
     # Enhancements
     plt.xlabel("Time (HH:MM:SS)", fontsize=14, fontweight='bold', color='black')
     plt.ylabel("Operations per Second", fontsize=14, fontweight='bold', color='black')
-    plt.title("System Throughput Over Time (SET + GET)", fontsize=16, fontweight='bold', color='black')
+    plt.title("System Throughput Over Time", fontsize=16, fontweight='bold', color='black')
     plt.xticks(rotation=45, fontsize=12)
     plt.yticks(fontsize=12)
     plt.grid(True, linestyle='--', linewidth=0.6, alpha=0.7)
@@ -76,38 +60,34 @@ def plot_nicer_throughput_graph(throughput_data):
     plt.show()
 
 if __name__ == "__main__":
-    # Paths to CSV files
-    set_csv_file = 'top_set_durations.csv'
-    get_csv_file = 'top_get_durations.csv'
+    # Path to CSV file
+    requests_csv_file = 'top_requests.csv'
     
-    # Read durations and timestamps
-    set_timestamps, set_durations = read_durations_with_timestamps(set_csv_file)
-    get_timestamps, get_durations = read_durations_with_timestamps(get_csv_file)
+    # Read timestamps
+    timestamps = read_timestamps(requests_csv_file)
 
     # Calculate per-second throughput
-    set_throughput_data = calculate_throughput_over_time(set_timestamps)
-    get_throughput_data = calculate_throughput_over_time(get_timestamps)
+    throughput_data = calculate_throughput_over_time(timestamps)
 
-    # Combine throughput data
-    combined_throughput_data = defaultdict(int)
-    for sec in set_throughput_data:
-        combined_throughput_data[sec] += set_throughput_data[sec]
-    for sec in get_throughput_data:
-        combined_throughput_data[sec] += get_throughput_data[sec]
-
-    # Calculate and print average combined throughput
-    total_ops = sum(combined_throughput_data.values())
-    total_seconds = len(combined_throughput_data)
+    # Calculate and print average throughput
+    total_ops = sum(throughput_data.values())
+    total_seconds = len(throughput_data)
     avg_throughput = total_ops / total_seconds if total_seconds > 0 else 0
 
-    print(f"\n[Average Combined Throughput]")
+    # Find peak throughput
+    if throughput_data:
+        peak_second = max(throughput_data, key=throughput_data.get)
+        peak_throughput = throughput_data[peak_second]
+        peak_timestamp_human = datetime.datetime.fromtimestamp(peak_second).strftime('%Y-%m-%d %H:%M:%S')
+
+        print(f"\n[Peak Throughput]")
+        print(f"Highest throughput occurred at {peak_timestamp_human}")
+        print(f"Peak Throughput: {peak_throughput} ops/sec")
+
+    print(f"\n[Average Throughput]")
     print(f"Total Operations: {total_ops}")
     print(f"Total Time Tracked: {total_seconds} seconds")
     print(f"Average Throughput: {avg_throughput:.2f} ops/sec")
 
-    # Combine durations and calculate latency percentiles
-    combined_durations = set_durations + get_durations
-    calculate_latency_distribution(combined_durations)
-
-    # Plot improved throughput graph
-    plot_nicer_throughput_graph(combined_throughput_data)
+    # Plot throughput graph
+    plot_throughput_graph(throughput_data)

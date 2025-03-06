@@ -101,6 +101,8 @@ func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 				SetWG.Add(1)
 				forceSetKey(v.(SetRequest), sm2)
 				sm2.mutex.RUnlock()
+
+				// time.Sleep(1 * time.Millisecond) // prioritize external requests
 			}
 		}
 	}

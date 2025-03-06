@@ -47,6 +47,8 @@ func main() {
 	// go HandleKeyTTLEviction(&SetContainer, &UpdateChan, &EventQueue)
 	// go eventNotificationHandler()
 
+	go appendToLog()
+
 	ln, err := net.Listen("tcp", ":8080")
 
 	if err != nil {

@@ -25,3 +25,25 @@ GET <key>
 
 SUBSCRIBE <key_name>
 ```
+
+
+
+
+log this from server's side:
+
+
+for each request irrespective of set or get:
+- time in epochs of when it was DONE processing from the engine and the amount of time it took to.... wait.. not again, okay, just the Timestamp_ms, nothing else
+
+var appendQueue chan int64 = make(chan int64, 50000000) // just don't block ffs
+
+func appendToLog(logPath string,epochTimestamp int){
+    // init log on logPath by emptying or creating it and appending `Timestamp_ms` to it
+
+    // each append under 4kb ,so should directly hit the storage instead of page cache
+    for{
+        appendData <- appendQueue
+        // append to the log on logPath
+
+    }
+}
