@@ -12,10 +12,10 @@ A blazing-fast KV store written in pure Golang without any dependencies with nat
 
 - 📈 **Exponential Shard Scaling:** Ensures capacity grows logarithmically, preventing premature resource exhaustion.
 - 🛠️ **Zero Downtime Resizing:** Live shard migration ensures uninterrupted operation. If one store is overloaded, the other takes its place seamlessly!
-- 🔄 **True Elasticity:** If load contention per shard increases, the engine scales up. If too many keys expire, it scales down.
+- **True Elasticity:** If load contention per shard increases, the engine scales up. If too many keys expire, it scales down.
 - 🚀 **Two-Engine Model:** Writes shift to a larger engine when contention grows too high while the old engine continues serving reads.
 - 🔓 **Wait free Reads & Writes:** Eliminates contention, enabling high-frequency write workloads.
-- 🔮 **Just Run & Forget:** Self-managing & self-healing—no babysitting required!
+- **Just Run & Forget:** Self-managing & self-healing—no babysitting required!
 
 ---
 
@@ -30,7 +30,7 @@ A blazing-fast KV store written in pure Golang without any dependencies with nat
 - 📡 **Subscription Model:**
   - Clients can **subscribe** to any key channel for updates.
   - Listen to the `Ex` channel for key expiries.
-- 💨 **Highly Available, Non-Blocking Priority Message Delivery:**
+- **Highly Available, Non-Blocking Priority Message Delivery:**
   - When contention rises, **SET/GET operations** are prioritized over event notifications. 🚦
 
 ---
@@ -44,22 +44,22 @@ A blazing-fast KV store written in pure Golang without any dependencies with nat
 
 ---
 
-## ⏳ Expiry & Subscription Notifications: Real-time Without Polling! 🚀
+## Expiry & Subscription Notifications: Real-time Without Polling! 🚀
 
 🛠️ **nubmq supports native pub-sub** 
 
-- ⏱️ **Automatic TTL-based eviction** ensures memory efficiency without manual intervention.
-- 🔄 **Event subscription notifications** clients can subscribe for events/
-- 🚫 **No-polling required!** Uses SSE(server side events) for all notifications
-- 🗑️ **Garbage-Free Expiration Cleanup:** Expired keys are soft deleted and permanently removed from engine during upscale/downscale operations.
+- **Automatic TTL-based eviction** ensures memory efficiency without manual intervention.
+- **Event subscription notifications** clients can subscribe for events/
+- **No-polling required!** Uses SSE(server side events) for all notifications
+- **Garbage-Free Expiration Cleanup:** Expired keys are soft deleted and permanently removed from engine during upscale/downscale operations.
 
-## 🏗️ Dual-Store Model: Scaling Without Downtime ⏳
+## 🏗️ Dual-Store Model: Scaling Without Downtime
 
 - 🏛️ **Two-tier storage system:**
   - Each store consists of multiple shards.
   - If a store gets congested, **writes shift to a larger store.** 
   - The old store **keeps serving reads** while data migrates.
-  - 🛑 **Zero downtime, no waiting!** Clients never experience delays.
+  - **Zero downtime, no waiting!** Clients never experience delays.
   - Once migration is complete, the old store is removed from memory for **garbage collection**.
 
 ---
@@ -96,7 +96,7 @@ nubmq squeezes every drop of performance from modern CPUs!
 
 ---
 
-## 📊 nubmq vs. The Rest 🤖
+## 📊 nubmq vs. The Rest
 
 | Feature                | nubmq                 | Redis             | Memcached        | Etcd            |
 |------------------------|----------------------|-------------------|-----------------|----------------|
@@ -121,12 +121,12 @@ nubmq squeezes every drop of performance from modern CPUs!
 
 Benchmarked on a 8 core fanless M2 air (all cores maxed out under load)
 
-- 📊 Concurrent Clients: **100**
-- 🎯 Peak Throughput: **115,809 ops/sec**
-- 📌 Average Throughput: **100,961.54 ops/sec**
-- 🗂️ Dataset Size: **1,000,000 unique keys**
-- ⏳ Total Operations: **21,000,000 requests**
-- ⏱️ Total Time Tracked: **208 seconds**
+- Concurrent Clients: **100**
+- Peak Throughput: **115,809 ops/sec**
+- Average Throughput: **100,961.54 ops/sec**
+- Dataset Size: **1,000,000 unique keys**
+- Total Operations: **21,000,000 requests**
+- Total Time Tracked: **208 seconds**
 
 Would love it if someone can test on a better machine and post the results
 
