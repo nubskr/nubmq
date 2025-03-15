@@ -4,8 +4,8 @@ import (
 	"sync"
 )
 
-var MaxConcurrentCoreWorkers int = 100
-var EVENT_NOTIFICATION_BUFFER int = 10000000 // WARN: magic number lmao, need it to avoid blocking connection reads in the core engine
+var MaxConcurrentCoreWorkers int = 100 // please update this if you want to test with more than 100 clients
+var EVENT_NOTIFICATION_BUFFER int = 10 // WARN: magic number lmao, need it to avoid blocking connection reads in the core engine
 
 var setQueue chan SetRequest = make(chan SetRequest, MaxConcurrentCoreWorkers)
 var SetWG sync.WaitGroup

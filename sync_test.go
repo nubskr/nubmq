@@ -545,8 +545,6 @@ func Test_gogo(t *testing.T) {
 	// avgThroughput
 	fmt.Printf("Average Response Time: %v\n", avgThroughput)
 	fmt.Printf("Average SET Response Time: %v\n", avgSetTime)
-	fmt.Printf("Top %d Max SET Response Times:\n", len(topSetDurations))
 	fmt.Printf("Average GET Response Time: %v\n", avgGetTime)
-	fmt.Printf("Top %d Max GET Response Times:\n", len(topGetDurations))
 
 }

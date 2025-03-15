@@ -1,4 +1,4 @@
-# 🚀 nubmq: a high performant key-value cache engine ૮ ˶ᵔ ᵕ ᵔ˶ ა
+# 🚀 nubmq: a high performant key-value cache engine
 
 A blazing-fast KV store written in pure Golang without any dependencies with native pub-sub support, engineered for high-frequency, contention-heavy workloads.🚀
 
@@ -21,7 +21,7 @@ A blazing-fast KV store written in pure Golang without any dependencies with nat
 
 ## 🔔 Event-Based Notification Scheduler
 
-💡 **NubMQ is polling-free**—notifications are delivered **instantly!** 📨, polling is for suckers
+💡 **nubmq is polling-free**—notifications are delivered **instantly!** 📨, polling is for suckers
 
 - 🎯 **Event Scheduler:** No CPU-wasting polling, just pure event-driven updates!
 - 🔥 **Supported Notifications:**
@@ -46,7 +46,7 @@ A blazing-fast KV store written in pure Golang without any dependencies with nat
 
 ## ⏳ Expiry & Subscription Notifications: Real-time Without Polling! 🚀
 
-🛠️ **NubMQ supports native pub-sub** 📡
+🛠️ **nubmq supports native pub-sub** 📡
 
 - ⏱️ **Automatic TTL-based eviction** ensures memory efficiency without manual intervention.
 - 🔄 **Event subscription notifications** clients can subscribe for events/
@@ -87,7 +87,7 @@ SUBSCRIBE <key>
 
 ## ⚡ Performance Beyond Limits 🏎️
 
-NubMQ squeezes every drop of performance from modern CPUs! 💪
+nubmq squeezes every drop of performance from modern CPUs! 💪
 
 - 🔄 **Parallelized Goroutines:** No single-threaded nonsense—everything runs concurrently. 🔥
 - 🔗 **Atomic Operations:** Ensures rock-solid data integrity. ⛓️
@@ -96,9 +96,9 @@ NubMQ squeezes every drop of performance from modern CPUs! 💪
 
 ---
 
-## 📊 NubMQ vs. The Rest 🤖
+## 📊 nubmq vs. The Rest 🤖
 
-| Feature                | NubMQ                 | Redis             | Memcached        | Etcd            |
+| Feature                | nubmq                 | Redis             | Memcached        | Etcd            |
 |------------------------|----------------------|-------------------|-----------------|----------------|
 | **Architecture**       | Adaptive Sharding   | Single-threaded  | Static Buckets  | Raft Consensus |
 | **Scalability**        | Auto-Scales Up/Down | Vertical Scaling | Horizontal Only | Limited        |
@@ -154,6 +154,7 @@ go run main.go
 ```
 
 now just play around with commands like you do in redis-cli
+
 ---
 
 ## 🔨 WIP (Work in Progress) 🔧
@@ -161,3 +162,6 @@ now just play around with commands like you do in redis-cli
 - **Parallelized Shard Store resizing:** would make shard store resizing faster
 - **Clustering:** currently only supports single nodes 🤖
 
+---
+
+nubmq is still a work in progress and is in no way perfect, feel free to report bugs and contributions in forms of issues and PRs are welcome
