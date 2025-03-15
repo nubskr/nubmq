@@ -31,7 +31,7 @@ func eventNotificationHandler() {
 					*ch <- "[EXPIRY] key: " + event.key + " expired for value: " + event.value
 				}
 			} else {
-				log.Fatal("~Ex not subbed by anyone ever :(")
+				log.Print("~Ex not subbed by anyone ever :(")
 			}
 		} else {
 			SubscribersMutex.Lock()

@@ -1,6 +1,6 @@
-# 🚀 nubmq: a high performant key-value cache engine
+# 🚀 nubmq: a high performant key-value cache engine ૮ ˶ᵔ ᵕ ᵔ˶ ა
 
-A blazing-fast, pure Golang pub-sub system with built-in concurrency, native scalability, and zero dependencies—engineered for high-frequency, contention-heavy workloads.🚀
+A blazing-fast KV store written in pure Golang without any dependencies with native pub-sub support, engineered for high-frequency, contention-heavy workloads.🚀
 
 ![Architecture](./assets/architecture.png)
 
@@ -21,7 +21,7 @@ A blazing-fast, pure Golang pub-sub system with built-in concurrency, native sca
 
 ## 🔔 Event-Based Notification Scheduler
 
-💡 **NubMQ is polling-free**—notifications are delivered **instantly!** 📨
+💡 **NubMQ is polling-free**—notifications are delivered **instantly!** 📨, polling is for suckers
 
 - 🎯 **Event Scheduler:** No CPU-wasting polling, just pure event-driven updates!
 - 🔥 **Supported Notifications:**
@@ -52,18 +52,6 @@ A blazing-fast, pure Golang pub-sub system with built-in concurrency, native sca
 - 🔄 **Event subscription notifications** clients can subscribe for events/
 - 🚫 **No-polling required!** Uses SSE(server side events) for all notifications
 - 🗑️ **Garbage-Free Expiration Cleanup:** Expired keys are soft deleted and permanently removed from engine during upscale/downscale operations. 🧹✨
-
----
-
-## 🔑 Key Hashing: Lightning-Fast Lookups ⚡
-
-Each key is **hashed using a polynomial rolling hash** and mapped to a bucket in the shard store. 🔢
-
-- ⚡ **Blazing-fast lookups** with near-uniform distribution.
-- 🔒 **Zero collisions (almost)** thanks to a smart modulus strategy! 🧠
-- 🚀 **Deterministic performance** ensures you never hit unexpected slowdowns! 🚧
-
----
 
 ## 🏗️ Dual-Store Model: Scaling Without Downtime ⏳
 
@@ -102,7 +90,6 @@ SUBSCRIBE <key>
 NubMQ squeezes every drop of performance from modern CPUs! 💪
 
 - 🔄 **Parallelized Goroutines:** No single-threaded nonsense—everything runs concurrently. 🔥
-- 🔓 **Lock-free reads, mutex-optimized writes** for the best of both worlds! 🌍
 - 🔗 **Atomic Operations:** Ensures rock-solid data integrity. ⛓️
 - 🚀 **Benchmark Results:** 900µs write latency, 500µs read latency under extreme load.
 - 🏆 **Peak Throughput:** 115,809 ops/sec with 100 concurrent clients on an M2 MacBook Air. 🍏
@@ -132,6 +119,8 @@ NubMQ squeezes every drop of performance from modern CPUs! 💪
 
 ![Benchmarks](https://raw.githubusercontent.com/nubskr/nubskr.github.io/f3db48f2c4e6ccb95a04a3348da79678d8ae579d/_posts/ThroughputBench.png)
 
+Benchmarked on a 8 core fanless M2 air (all cores maxed out under load)
+
 - 📊 Concurrent Clients: **100**
 - 🎯 Peak Throughput: **115,809 ops/sec**
 - 📌 Average Throughput: **100,961.54 ops/sec**
@@ -139,6 +128,32 @@ NubMQ squeezes every drop of performance from modern CPUs! 💪
 - ⏳ Total Operations: **21,000,000 requests**
 - ⏱️ Total Time Tracked: **208 seconds**
 
+Would love it if someone can test on a better machine and post the results
+
+---
+
+## How to run
+
+first start the server with:
+
+```bash
+make build
+```
+
+run the benchmark with:
+
+```bash
+make test
+```
+
+or start the client with:
+
+```bash
+cd ./client
+go run main.go
+```
+
+now just play around with commands like you do in redis-cli
 ---
 
 ## 🔨 WIP (Work in Progress) 🔧

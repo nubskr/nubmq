@@ -104,7 +104,7 @@ func handleConnection(conn net.Conn) {
 
 			select {
 			case <-curReq.status:
-			case <-time.After(2 * time.Second): // Timeout in case of delay
+			case <-time.After(10 * time.Second): // Timeout in case of delay
 				log.Fatal("BAD WORKER, SET REQUEST TIMED OUT FOR KEY: ", curReq.key)
 			}
 
@@ -116,7 +116,7 @@ func handleConnection(conn net.Conn) {
 			if exists {
 				writeChanPrimary <- res
 			} else {
-				log.Fatal("tf just happened here")
+				// log.Fatal("tf just happened here")
 			}
 		} else if stringData[0] == "SUBSCRIBE" {
 			key := stringData[1]

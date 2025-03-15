@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-var MaxConcurrentCoreWorkers int = 25
+var MaxConcurrentCoreWorkers int = 100
 var EVENT_NOTIFICATION_BUFFER int = 10000000 // WARN: magic number lmao, need it to avoid blocking connection reads in the core engine
 
 var setQueue chan SetRequest = make(chan SetRequest, MaxConcurrentCoreWorkers)
