@@ -2,7 +2,7 @@
 
 A blazing-fast KV store written in pure Golang without any dependencies with native pub-sub support, engineered for high-frequency, contention-heavy workloads.🚀
 
-![Architecture](./assets/architecture.png)
+![Architecture](https://raw.githubusercontent.com/nubskr/nubmq/master/assets/nubmq_new_.png)
 
 ---
 
