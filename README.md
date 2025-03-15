@@ -1,83 +1,92 @@
-# NubMQ: A high performant key-value cache engine
+# 🚀 nubmq: a high performant key-value cache engine
 
-- pure golang, no dependencies
-- built from scratch
-- highly available, wait free
-- built in concurrency 
-- outperforms legacy architectures
+A blazing-fast, pure Golang pub-sub system with built-in concurrency, native scalability, and zero dependencies—engineered for high-frequency, contention-heavy workloads.🚀
 
-## 🏗 Architecture
+![Architecture](./assets/architecture.png)
 
-![](./assets/architecture.png)
+---
 
-### Adaptive Sharding: a self managing, self healing system
+## 🧩 Adaptive Sharding: a self-managing, self-healing system
 
-The system starts from a single bucket and scales up and down in real-time based on demand, when some keys expire, they immediately stop being served and are removed from the store in the next resizing
+✨ The system starts from a single bucket and **scales dynamically** in real-time! 🏗️ When keys expire, they immediately stop being served and are removed during the next resizing.
 
-- **Exponential Shard Scaling:** Ensures that capacity grows logarithmically, preventing premature resource exhaustion.
-- **Zero Downtime Resizing:** Live shard migration ensures that resizing doesn’t disrupt active requests, even when one store is overloaded, the other one takes it's place while the old store stabilises and still keeps serving reads
-- **True Elasticity:** when the load contention per shard gets too big, the engine auto scales up the number of shards or buckets and when too many keys expire, it auto scales down
-- **Two-Engine Model:** Writes shift to a larger engine when the contention becomes too big in one store while the old engine continues to serve reads during migrations.
-- **Almost Lock-Free for Reads & Writes:** Eliminates contention, enabling high-frequency write workloads.
-- **Just Run & Forget:** Once deployed, it self-manages and self-heales without intervention.
+- 📈 **Exponential Shard Scaling:** Ensures capacity grows logarithmically, preventing premature resource exhaustion.
+- 🛠️ **Zero Downtime Resizing:** Live shard migration ensures uninterrupted operation. If one store is overloaded, the other takes its place seamlessly! 💨
+- 🔄 **True Elasticity:** If load contention per shard increases, the engine scales up. If too many keys expire, it scales down. 🏗️
+- 🚀 **Two-Engine Model:** Writes shift to a larger engine when contention grows too high while the old engine continues serving reads. 📡
+- 🔓 **Wait free Reads & Writes:** Eliminates contention, enabling high-frequency write workloads. 🏎️
+- 🔮 **Just Run & Forget:** Self-managing & self-healing—no babysitting required! 🍼❌
 
-### Event-Based Notification Scheduler
+---
 
-NubMQ is **polling-free**—notifications are delivered **instantly**:
+## 🔔 Event-Based Notification Scheduler
 
-- **Event Scheduler:** No CPU-wasting polling, just instantaneous event-driven updates.
-- **Supported Notifications:**
-  - **Key Expiry:** Get notified the moment a key expires.
-  - **Key Updates:** Get real-time updates when a key’s value gets updated.
-- **Subscription Model:**
-  - Clients can subscribe to any key channel for update notifications.
-  - Subscribe to the `Ex` channel for listening to key expiries.
-- **Highly Available, Non-Blocking Priority Message Delivery:**
-  - If contention gets too high, the engine prioritizes **SET/GET operations** over event notifications.
+💡 **NubMQ is polling-free**—notifications are delivered **instantly!** 📨
 
-### Event-Driven Connection Handling: No Bottlenecks, No Excuses
+- 🎯 **Event Scheduler:** No CPU-wasting polling, just pure event-driven updates!
+- 🔥 **Supported Notifications:**
+  - 🕒 **Key Expiry:** Get notified the moment a key expires.
+  - 🔄 **Key Updates:** Real-time updates whenever a key’s value changes.
+- 📡 **Subscription Model:**
+  - 📝 Clients can **subscribe** to any key channel for updates.
+  - ⏳ Listen to the `Ex` channel for key expiries.
+- 💨 **Highly Available, Non-Blocking Priority Message Delivery:**
+  - When contention rises, **SET/GET operations** are prioritized over event notifications. 🚦
 
-Each connection get's it's own read and write buffers to achieve non blocking IO across concurrent requests
+---
 
-- **Hierarchical Write Queues:** Critical operations (`SET`, `GET`) get priority over event notifications.
-- **Ultra-fast Non-blocking I/O:** Every client interaction is a microsecond affair.
+## 🔗 Event-Driven Connection Handling: No Bottlenecks, No Excuses 😤
 
-### Expiry & Subscription Notifications: Real time notifications without polling
+💡 **Every connection gets its own read and write buffers** to enable non-blocking I/O across concurrent requests! 🚀
 
-NubMQ natively supports pub-sub model
+- 🚦 **Hierarchical Write Queues:** Critical operations (`SET`, `GET`) always get priority. 🔝
+- ⚡ **Ultra-fast Non-blocking I/O:** Every client interaction is measured in **microseconds**! 🕰️💨
 
-- **Automatic TTL-based eviction**, ensuring memory efficiency without manual intervention.
-- **Event subscription notifications,** so clients know instantly when keys change or expire.
-- **No-polling required**, unlike slow, wasteful alternatives that hammer the system.
-- **Garbage-Free Expiration Cleanup:** Expired key notification is sent instantly and they are soft deleted and are removed completely from the engine in the next upscale or downscale operation.
+---
 
-### Key Hashing:
+## ⏳ Expiry & Subscription Notifications: Real-time Without Polling! 🚀
 
-Each key is hashed with a polynomial rolling hash and is indexed to a bucket in the shard store
+🛠️ **NubMQ supports native pub-sub** 📡
 
-- **Blazing-fast key lookup** with near-uniform distribution.
-- **Zero collisions (almost),** thanks to an intelligent modulus strategy.
-- **Deterministic performance**, meaning you won’t hit random performance cliffs.
+- ⏱️ **Automatic TTL-based eviction** ensures memory efficiency without manual intervention.
+- 🔄 **Event subscription notifications** clients can subscribe for events/
+- 🚫 **No-polling required!** Uses SSE(server side events) for all notifications
+- 🗑️ **Garbage-Free Expiration Cleanup:** Expired keys are soft deleted and permanently removed from engine during upscale/downscale operations. 🧹✨
 
+---
 
-### Dual-Store Model:
+## 🔑 Key Hashing: Lightning-Fast Lookups ⚡
 
-- **Two-tier Storage System:**
-  - Each store contains multiple shards.
-  - If a store becomes congested, **writes automatically move to a larger store**.
-  - The old store keeps **serving reads** while silently migrating its data.
-  - **Zero Downtime, No Waiting:** Clients never experience delays during store migration.
-  - when the migration is done, the old store is removed from memory to be collected by Garbage collector
+Each key is **hashed using a polynomial rolling hash** and mapped to a bucket in the shard store. 🔢
 
-## 🛠 Features
+- ⚡ **Blazing-fast lookups** with near-uniform distribution.
+- 🔒 **Zero collisions (almost)** thanks to a smart modulus strategy! 🧠
+- 🚀 **Deterministic performance** ensures you never hit unexpected slowdowns! 🚧
 
-- **Hyperfast SET / GET operations**
-- **Built-in Expiry with TTL**
-- **Real-time Subscription Mechanism**
-- **Pure Golang, No Dependencies**
-- **High-Performance Cache or NoSQL Mode** (Just increase memory limits)
+---
 
-### Command Support
+## 🏗️ Dual-Store Model: Scaling Without Downtime ⏳
+
+- 🏛️ **Two-tier storage system:**
+  - Each store consists of multiple shards. 📦
+  - If a store gets congested, **writes shift to a larger store.** 📈
+  - The old store **keeps serving reads** while data migrates. 🚛
+  - 🛑 **Zero downtime, no waiting!** Clients never experience delays. 🕰️
+  - Once migration is complete, the old store is removed from memory for **garbage collection**. 🧹
+
+---
+
+## 🛠 Features ✨
+
+- ⚡ **Hyperfast SET/GET operations** 🚀
+- ⏳ **Built-in Expiry with TTL** ⏱️
+- 📡 **Real-time Subscription Mechanism** 🛜
+- 📝 **Pure Golang, No Dependencies** 🦾
+- 🔥 **High-Performance Cache or NoSQL Mode** (Just increase memory limits) 🗄️
+
+---
+
+## 📝 Command Support 💻
 
 ```plaintext
 SET <key> <value>
@@ -86,18 +95,21 @@ GET <key>
 SUBSCRIBE <key>
 ```
 
-## ⚡ Performance Beyond Limits
+---
 
-NubMQ squeezes out every drop of performance from modern CPUs:
+## ⚡ Performance Beyond Limits 🏎️
 
-- **Parallelized Goroutines:** No single-threaded nonsense—everything runs concurrently.
-- **Lock-free reads, mutex-optimized writes:** You get the best of both worlds.
-- **Atomic Operations:** Keeps data integrity rock-solid without unnecessary contention.
-- **Benchmark Results:** 900µs write latency, 500µs read latency under extreme load.
-- **Peak Throughput:** 115,809 ops/sec with 100 concurrent clients on an M2 MacBook Air.
+NubMQ squeezes every drop of performance from modern CPUs! 💪
 
+- 🔄 **Parallelized Goroutines:** No single-threaded nonsense—everything runs concurrently. 🔥
+- 🔓 **Lock-free reads, mutex-optimized writes** for the best of both worlds! 🌍
+- 🔗 **Atomic Operations:** Ensures rock-solid data integrity. ⛓️
+- 🚀 **Benchmark Results:** 900µs write latency, 500µs read latency under extreme load.
+- 🏆 **Peak Throughput:** 115,809 ops/sec with 100 concurrent clients on an M2 MacBook Air. 🍏
 
-## 📊 NubMQ vs. The Rest
+---
+
+## 📊 NubMQ vs. The Rest 🤖
 
 | Feature                | NubMQ                 | Redis             | Memcached        | Etcd            |
 |------------------------|----------------------|-------------------|-----------------|----------------|
@@ -112,26 +124,25 @@ NubMQ squeezes out every drop of performance from modern CPUs:
 | **Memory Efficiency**  | High, Dynamic GC    | Medium           | High            | Low            |
 | **Dependencies**       | **None (Pure Go)**  | Libevent, Lua    | Libevent        | Raft           |
 
-*figures from testing on M2 air or from official sources
+📌 *Figures from testing on M2 Air or from official sources*
 
+---
 
-## 📈 Benchmarks:
+## 📈 Benchmarks 🚀
 
-![](https://raw.githubusercontent.com/nubskr/nubskr.github.io/f3db48f2c4e6ccb95a04a3348da79678d8ae579d/_posts/ThroughputBench.png)
+![Benchmarks](https://raw.githubusercontent.com/nubskr/nubskr.github.io/f3db48f2c4e6ccb95a04a3348da79678d8ae579d/_posts/ThroughputBench.png)
 
-Benchmarked on a 8 core fanless M2 air
-(all cores maxed out under load)
+- 📊 Concurrent Clients: **100**
+- 🎯 Peak Throughput: **115,809 ops/sec**
+- 📌 Average Throughput: **100,961.54 ops/sec**
+- 🗂️ Dataset Size: **1,000,000 unique keys**
+- ⏳ Total Operations: **21,000,000 requests**
+- ⏱️ Total Time Tracked: **208 seconds**
 
-- Concurrent clients: 100
-- Peak Throughput: 115809 ops/sec
-- Average Throughput: 100961.54 ops/sec
-- Dataset size: 1000000 unique Keys (to avoid key eviction)
-- Total Operations: 21000000 requests
-- Total Time Tracked: 208 seconds
+---
 
-## 🚀 WIP
+## 🔨 WIP (Work in Progress) 🔧
 
-Like everything else in life, this is still not perfect, these are some things which I plan to add to it
+- **Parallelized Shard Store resizing:** would make shard store resizing faster
+- **Clustering:** currently only supports single nodes 🤖
 
-- **Parallelized Shard Store resizing:** each le
-- **Clustering:** currently only supports single nodes
