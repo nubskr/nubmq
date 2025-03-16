@@ -115,7 +115,7 @@ func handleConnection(conn net.Conn) {
 				value: stringData[2],
 			}
 
-			EventQueue <- entry
+			// EventQueue <- entry
 
 			if len(stringData) == 5 {
 

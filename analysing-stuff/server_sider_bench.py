@@ -2,6 +2,7 @@ import csv
 import datetime
 import matplotlib.pyplot as plt
 from collections import defaultdict
+import numpy as np
 
 def read_timestamps(csv_file_path):
     timestamps = []
@@ -32,25 +33,52 @@ def calculate_throughput_over_time(timestamps):
 
     return throughput_per_second
 
+# def plot_throughput_graph(throughput_data):
+#     if not throughput_data:
+#         print("No throughput data to plot.")
+#         return
+
+#     # Convert timestamp keys to human-readable format
+#     timestamps = sorted(throughput_data.keys())
+#     throughput_values = [throughput_data[ts] for ts in timestamps]
+#     human_readable_timestamps = [datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S') for ts in timestamps]
+
+#     # Create the plot
+#     plt.figure(figsize=(14, 7))
+#     plt.plot(human_readable_timestamps, throughput_values, marker='o', linestyle='-', linewidth=2.5, markersize=8, color='#FF5733', label="Ops/sec")
+
+#     # Enhancements
+#     plt.xlabel("Time (HH:MM:SS)", fontsize=14, fontweight='bold', color='black')
+#     plt.ylabel("Operations per Second", fontsize=14, fontweight='bold', color='black')
+#     plt.title("System Throughput Over Time", fontsize=16, fontweight='bold', color='black')
+#     plt.xticks(rotation=45, fontsize=12)
+#     plt.yticks(fontsize=12)
+#     plt.grid(True, linestyle='--', linewidth=0.6, alpha=0.7)
+#     plt.legend(fontsize=12, loc='upper right')
+#     plt.tight_layout()
+
+#     # Show the plot
+#     plt.show()
+
 def plot_throughput_graph(throughput_data):
     if not throughput_data:
         print("No throughput data to plot.")
         return
 
-    # Convert timestamp keys to human-readable format
+    # Convert timestamps to relative time (starting from 0)
     timestamps = sorted(throughput_data.keys())
+    relative_timestamps = [ts - timestamps[0] for ts in timestamps]  # Start from 0
     throughput_values = [throughput_data[ts] for ts in timestamps]
-    human_readable_timestamps = [datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S') for ts in timestamps]
 
     # Create the plot
     plt.figure(figsize=(14, 7))
-    plt.plot(human_readable_timestamps, throughput_values, marker='o', linestyle='-', linewidth=2.5, markersize=8, color='#FF5733', label="Ops/sec")
+    plt.plot(relative_timestamps, throughput_values, marker='o', linestyle='-', linewidth=2.5, markersize=6, color='#2E86C1', label="Ops/sec")
 
     # Enhancements
-    plt.xlabel("Time (HH:MM:SS)", fontsize=14, fontweight='bold', color='black')
+    plt.xlabel("Time (seconds)", fontsize=14, fontweight='bold', color='black')
     plt.ylabel("Operations per Second", fontsize=14, fontweight='bold', color='black')
     plt.title("System Throughput Over Time", fontsize=16, fontweight='bold', color='black')
-    plt.xticks(rotation=45, fontsize=12)
+    plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
     plt.grid(True, linestyle='--', linewidth=0.6, alpha=0.7)
     plt.legend(fontsize=12, loc='upper right')

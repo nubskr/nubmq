@@ -4,8 +4,9 @@ import (
 	"sync"
 )
 
-var MaxConcurrentCoreWorkers int = 200
-var EVENT_NOTIFICATION_BUFFER int = 10000000 // WARN: magic number lmao, need it to avoid blocking connection reads in the core engine
+var MaxConcurrentCoreWorkers int = 100
+
+// var EVENT_NOTIFICATION_BUFFER int = 1000 // WARN: magic number lmao, need it to avoid blocking connection reads in the core engine
 
 var setQueue chan SetRequest = make(chan SetRequest, MaxConcurrentCoreWorkers)
 var SetWG sync.WaitGroup
@@ -14,7 +15,7 @@ var allowSets sync.Mutex
 var Subscribers map[string][]*chan string // key -> SubscriberWriteSecondaryChannels
 var SubscribersMutex sync.Mutex
 
-var EventQueue chan Entry = make(chan Entry, EVENT_NOTIFICATION_BUFFER)
+// var EventQueue chan Entry = make(chan Entry, EVENT_NOTIFICATION_BUFFER)
 
 // TODO: sync map too hardcode and abstracted for my taste
 type Shard struct {

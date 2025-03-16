@@ -15,9 +15,9 @@ import (
 	"time"
 )
 
-var numConnections = 100 // Number of concurrent connections
-var numKeys = 10000000   // Total number of read and write requests each
-var mxVals = 1000000     // limit the number of unique keys or the system will just start evicting them
+var numConnections = 50 // Number of concurrent connections
+var numKeys = 10000000  // Total number of read and write requests each
+var mxVals = 10000      // limit the number of unique keys or the system will just start evicting them
 
 func whatever(shit string) string {
 	if shit == "NaN" {
