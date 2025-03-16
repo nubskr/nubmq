@@ -55,7 +55,8 @@ func handleConnection(conn net.Conn) {
 			 0	 1    2	    3	  4
 		*/
 
-		if stringData[0] == "SET" {
+		if stringData[0] == "SET" && len(stringData) > 2 {
+
 			curReq := SetRequest{
 				key:       stringData[1],
 				value:     stringData[2],
@@ -116,6 +117,7 @@ func handleConnection(conn net.Conn) {
 			if exists {
 				writeChanPrimary <- res
 			} else {
+				writeChanPrimary <- "(nil)"
 				// log.Fatal("tf just happened here")
 			}
 		} else if stringData[0] == "SUBSCRIBE" {
@@ -126,6 +128,7 @@ func handleConnection(conn net.Conn) {
 			SubscribersMutex.Unlock()
 			writeChanSecondary <- "SUBSCRIBED TO CHANNEL"
 		} else {
+			writeChanPrimary <- "invalid command"
 		}
 	}
 }

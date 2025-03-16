@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"runtime"
@@ -33,7 +32,7 @@ var newShardManagerKeeper = ShardManagerKeeperTemp{
 }
 
 func main() {
-	log.SetOutput(io.Discard)
+	// log.SetOutput(io.Discard)
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 

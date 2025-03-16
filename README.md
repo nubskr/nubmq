@@ -29,7 +29,7 @@ A blazing-fast KV store written in pure Golang without any dependencies with nat
   - **Key Updates:** Real-time updates whenever a key’s value changes.
 - 📡 **Subscription Model:**
   - Clients can **subscribe** to any key channel for updates.
-  - Listen to the `Ex` channel for key expiries.
+  - Listen to the `~Ex` channel for key expiries.
 - **Highly Available, Non-Blocking Priority Message Delivery:**
   - When contention rises, **SET/GET operations** are prioritized over event notifications. 🚦
 
@@ -164,4 +164,4 @@ now just play around with commands like you do in redis-cli
 
 ---
 
-nubmq is still a work in progress and is in no way perfect, feel free to report bugs and contributions in forms of issues and PRs are welcome
+nubmq is still a work in progress and is in no way perfect,there are still some data races here and there and a few unhandled errors feel free to report bugs and contributions in forms of issues and PRs are welcome

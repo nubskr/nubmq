@@ -74,7 +74,7 @@ func main() {
 			stuff = finalString
 		}
 
-		log.Print("sending this shit: ", stuff)
+		// log.Print("sending this shit: ", stuff)
 
 		_, err = conn.Write([]byte(stuff))
 		if err != nil {

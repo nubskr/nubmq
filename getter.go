@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"time"
 )
 
 func getAtIndex(idx int, key string, keeper *ShardManagerKeeperTemp) (string, bool) {
@@ -21,9 +23,12 @@ func getAtIndex(idx int, key string, keeper *ShardManagerKeeperTemp) (string, bo
 	value, ok := target.data.Load(key)
 	if ok {
 		entry := (value.(Entry)).value
+		if int64(time.Now().Unix()) >= (value.(Entry).TTL) {
+			return "NaN", false
+		}
 		return entry, true
 	} else {
-		fmt.Println("just not there man", key)
+		log.Print("just not there man", key)
 		return "NaN", false
 	}
 }
@@ -44,11 +49,14 @@ func _getKey(key string) (string, bool) {
 		}
 	}
 
+	log.Print("---out---,checking second")
+
 	ShardManagerKeeper.mutex.RLock()
 
 	ret, found := getAtIndex(getKeyHash(key, &ShardManagerKeeper), key, &ShardManagerKeeper)
 
 	ShardManagerKeeper.mutex.RUnlock()
+	log.Print("out of lock----")
 
 	return ret, found
 }
