@@ -89,7 +89,7 @@ def plot_throughput_graph(throughput_data):
 
 if __name__ == "__main__":
     # Path to CSV file
-    requests_csv_file = 'top_requests.csv'
+    requests_csv_file = '/Users/nubskr/Downloads/top_requests.csv'
     
     # Read timestamps
     timestamps = read_timestamps(requests_csv_file)
