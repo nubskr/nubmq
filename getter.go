@@ -23,7 +23,7 @@ func getAtIndex(idx int, key string, keeper *ShardManagerKeeperTemp) (string, bo
 	value, ok := target.data.Load(key)
 	if ok {
 		entry := (value.(Entry)).value
-		if int64(time.Now().Unix()) >= (value.(Entry).TTL) {
+		if value.(Entry).canExpire && int64(time.Now().Unix()) >= (value.(Entry).TTL) {
 			return "NaN", false
 		}
 		return entry, true
