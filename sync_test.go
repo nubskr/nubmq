@@ -15,14 +15,14 @@ import (
 	"time"
 )
 
-var numConnections = 50 // Number of concurrent connections
-var numKeys = 100000    // Total number of read and write requests each
-var mxVals = 10000      // limit the number of unique keys or the system will just start evicting them
+var numConnections = 100 // Number of concurrent connections
+var numKeys = 10000000   // Total number of read and write requests each
+var mxVals = 100000      // limit the number of unique keys or the system will just start evicting them
 
 func whatever(shit string) string {
-	if shit == "NaN" {
+	if shit == "(nil)" {
 		fmt.Println("your server is sending bullshit, check it dumbass")
-		// os.Exit(1)
+		os.Exit(1)
 	}
 
 	return shit
@@ -307,7 +307,7 @@ func Test_gogo(t *testing.T) {
 				setResponses[connIdx][i-startKey] = fmt.Sprintf("Response: %s (Time: %v) [Timestamp: %d]", response, duration, timestamp)
 			}
 
-			// time.Sleep(1 * time.Second) // this should be good enough for the most part
+			// time.Sleep(3 * time.Second) // this should be good enough for the most part
 			// wg.Wait()
 
 			// Phase 2: GET operations

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"sync/atomic"
-	"time"
 )
 
 // makes and returns a presized SMkeeper pointer
@@ -80,26 +79,28 @@ func migrateKeys(sm1 *ShardManagerKeeperTemp, sm2 *ShardManagerKeeperTemp) {
 	// fmt.Println("Migrating Keys start---------------")
 	for _, SM := range sm1.ShardManagers {
 		for _, Shard := range SM.Shards {
-			pairs := make(map[interface{}]interface{})
+			// pairs := make(map[interface{}]interface{})
+			pairs := Shard.data.GetAll()
 
-			Shard.data.Range(func(key, value interface{}) bool {
-				entryVal := value.(Entry)
-				if entryVal.canExpire && entryVal.TTL < time.Now().Unix() {
-					// expired key, skipping
-					log.Print("We found an expired key sire: ", key)
-				} else {
-					pairs[key] = getNewRequest(key.(string), entryVal)
-				}
-				return true
-			})
+			// Shard.data.Range(func(key, value interface{}) bool {
+			// 	entryVal := value.(Entry)
+			// 	if entryVal.canExpire && entryVal.TTL < time.Now().Unix() {
+			// 		// expired key, skipping
+			// 		log.Print("We found an expired key sire: ", key)
+			// 	} else {
+			// 		pairs[key] = getNewRequest(key.(string), entryVal)
+			// 	}
+			// 	return true
+			// })
 
 			// log.Print("Trying to get inside read lock on new table")
-			for k, v := range pairs {
+			for _, e := range pairs {
 				// TODO: should we use SetQueue here too ?
-				log.Print("Migrating key", k)
+				log.Print("Migrating key", e.key)
 				sm2.mutex.RLock()
 				SetWG.Add(1)
-				forceSetKey(v.(SetRequest), sm2)
+				req := getNewRequest(e.key, e)
+				forceSetKey(req, sm2)
 				sm2.mutex.RUnlock()
 			}
 		}
