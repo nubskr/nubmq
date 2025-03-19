@@ -99,7 +99,7 @@ func (m *CustomMap) GetAll() []Entry {
 		m.Buckets[i].mutex.RLock()
 		for _, entryVal := range m.Buckets[i].Data {
 			if entryVal.canExpire && entryVal.TTL >= now {
-				// log.Fatal("get rekt idiot")
+
 			} else {
 				result = append(result, entryVal)
 			}

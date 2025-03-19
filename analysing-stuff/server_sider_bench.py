@@ -22,7 +22,6 @@ def read_timestamps(csv_file_path):
 
     
  
-
     with open(csv_file_path, mode='r') as csvfile:
  
 
@@ -162,117 +161,27 @@ def plot_throughput_graph(throughput_data):
  
 
     plt.grid(True, linestyle='--', linewidth=0.6, alpha=0.7)
- 
-
     plt.legend(fontsize=12, loc='upper right')
- 
-
     plt.tight_layout()
- 
-
-
- 
-
-    # Show the plot
- 
-
     plt.show()
- 
-
-
- 
 
 if __name__ == "__main__":
- 
-
-    # Path to CSV file
- 
-
     requests_csv_file = 'top_requests.csv'
- 
-
-    
- 
-
-    # Read timestamps
- 
-
     timestamps = read_timestamps(requests_csv_file)
- 
-
-
- 
-
-    # Calculate per-second throughput
- 
-
     throughput_data = calculate_throughput_over_time(timestamps)
- 
-
-
- 
-
-    # Calculate and print average throughput
- 
-
     total_ops = sum(throughput_data.values())
- 
-
     total_seconds = len(throughput_data)
- 
-
     avg_throughput = total_ops / total_seconds if total_seconds > 0 else 0
- 
-
-
- 
-
-    # Find peak throughput
- 
-
     if throughput_data:
- 
-
         peak_second = max(throughput_data, key=throughput_data.get)
- 
-
         peak_throughput = throughput_data[peak_second]
- 
-
         peak_timestamp_human = datetime.datetime.fromtimestamp(peak_second).strftime('%Y-%m-%d %H:%M:%S')
- 
-
-
- 
-
         print(f"\n[Peak Throughput]")
- 
-
         print(f"Highest throughput occurred at {peak_timestamp_human}")
- 
-
         print(f"Peak Throughput: {peak_throughput} ops/sec")
- 
-
-
- 
 
     print(f"\n[Average Throughput]")
- 
-
     print(f"Total Operations: {total_ops}")
- 
-
     print(f"Total Time Tracked: {total_seconds} seconds")
- 
-
     print(f"Average Throughput: {avg_throughput:.2f} ops/sec")
- 
-
-
- 
-
-    # Plot throughput graph
- 
-
     plot_throughput_graph(throughput_data)
