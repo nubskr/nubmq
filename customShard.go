@@ -98,7 +98,7 @@ func (m *CustomMap) GetAll() []Entry {
 	for i := 0; i < CUSTOM_MAP_BUCKET_SIZE; i++ {
 		m.Buckets[i].mutex.RLock()
 		for _, entryVal := range m.Buckets[i].Data {
-			if entryVal.canExpire && entryVal.TTL >= now {
+			if entryVal.canExpire && entryVal.TTL < now {
 
 			} else {
 				result = append(result, entryVal)
