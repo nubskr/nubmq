@@ -117,7 +117,9 @@ nubmq squeezes every drop of performance from modern CPUs!
 
 ## 📈 Benchmarks
 
-![Benchmarks](https://raw.githubusercontent.com/nubskr/nubskr.github.io/f3db48f2c4e6ccb95a04a3348da79678d8ae579d/_posts/ThroughputBench.png)
+I recently replaced sync.map for buckets to a custom hashtable implementation and got a ~40 percent performance gain!
+
+![Benchmarks](./assets/new_bench.png)
 
 Benchmarked on a 8 core fanless M2 air (all cores maxed out under load)
 
