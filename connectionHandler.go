@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +16,66 @@ func WriteStuffToConn(conn net.Conn, stuff string) {
 	if err != nil {
 		log.Print("failed to reply message:", err)
 	}
+}
+
+var appendQueue chan int64 = make(chan int64, 50000000) // just don't block ffs
+
+func appendToLog() {
+
+	logPath := "./analysing-stuff/top_requests.csv"
+
+	// Create or truncate the file and write header
+
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+
+	if err != nil {
+
+		log.Fatal("Failed to open log file:", err)
+
+	}
+
+	_, err = f.WriteString("Timestamp_ms\n")
+
+	if err != nil {
+
+		log.Fatal("Failed to write header:", err)
+
+	}
+
+	f.Close()
+
+	// Open file in append mode for subsequent writes
+
+	f, err = os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY, 0644)
+
+	if err != nil {
+
+		log.Fatal("Failed to open log file for appending:", err)
+
+	}
+
+	defer f.Close()
+
+	// Write timestamps as they come in
+
+	for {
+
+		appendData := <-appendQueue
+
+		_, err := f.WriteString(fmt.Sprintf("%d\n", appendData))
+
+		if err != nil {
+
+			log.Printf("Failed to append to log: %v", err)
+
+		}
+
+		// Ensure data is written to disk
+
+		// f.Sync()
+
+	}
+
 }
 
 func handleConnection(conn net.Conn) {
@@ -105,15 +166,16 @@ func handleConnection(conn net.Conn) {
 
 			select {
 			case <-curReq.status:
-			case <-time.After(10 * time.Second): // Timeout in case of delay
-				log.Fatal("BAD WORKER, SET REQUEST TIMED OUT FOR KEY: ", curReq.key)
+				appendQueue <- time.Now().UnixMilli()
+			case <-time.After(100 * time.Second): // Timeout in case of delay
+				// log.Fatal("BAD WORKER, SET REQUEST TIMED OUT FOR KEY: ", curReq.key)
 			}
 
 			writeChanPrimary <- "SET done"
 
 		} else if stringData[0] == "GET" {
 			res, exists := _getKey(stringData[1])
-
+			appendQueue <- time.Now().UnixMilli()
 			if exists {
 				writeChanPrimary <- res
 			} else {

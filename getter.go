@@ -22,11 +22,12 @@ func getAtIndex(idx int, key string, keeper *ShardManagerKeeperTemp) (string, bo
 	targetSM.mutex.RUnlock()
 	value, ok := target.data.Load(key)
 	if ok {
+		if value.canExpire && int64(time.Now().Unix()) > (value.TTL) {
 		entry := (value.(Entry)).value
-		if value.(Entry).canExpire && int64(time.Now().Unix()) >= (value.(Entry).TTL) {
+		if value.(Entry).canExpire && int64(time.Now().Unix()) > (value.(Entry).TTL) {
 			return "NaN", false
 		}
-		return entry, true
+		return value.value, true
 	} else {
 		log.Print("just not there man", key)
 		return "NaN", false

@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-var MaxConcurrentCoreWorkers int = 100 // please update this if you want to test with more than 100 clients
+var MaxConcurrentCoreWorkers int = 50
 var EVENT_NOTIFICATION_BUFFER int = 15 // WARN: magic number lmao, need it to avoid blocking connection reads in the core engine
 
 var setQueue chan SetRequest = make(chan SetRequest, MaxConcurrentCoreWorkers)
@@ -18,7 +18,8 @@ var EventQueue chan Entry = make(chan Entry, EVENT_NOTIFICATION_BUFFER)
 
 // TODO: sync map too hardcode and abstracted for my taste
 type Shard struct {
-	data sync.Map
+	// data sync.Map
+	data CustomMap
 }
 
 type ShardManager struct {

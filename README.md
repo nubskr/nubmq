@@ -10,11 +10,11 @@ A blazing-fast KV store written in pure Golang without any dependencies with nat
 
 ✨ The system starts from a single bucket and **scales dynamically** in real-time! When keys expire, they immediately stop being served and are removed during the next resizing.
 
-- 📈 **Exponential Shard Scaling:** Ensures capacity grows logarithmically, preventing premature resource exhaustion.
-- 🛠️ **Zero Downtime Resizing:** Live shard migration ensures uninterrupted operation. If one store is overloaded, the other takes its place seamlessly!
+- **Exponential Shard Scaling:** Ensures capacity grows logarithmically, preventing premature resource exhaustion.
+- **Zero Downtime Resizing:** Live shard migration ensures uninterrupted operation. If one store is overloaded, the other takes its place seamlessly!
 - **True Elasticity:** If load contention per shard increases, the engine scales up. If too many keys expire, it scales down.
-- 🚀 **Two-Engine Model:** Writes shift to a larger engine when contention grows too high while the old engine continues serving reads.
-- 🔓 **Wait free Reads & Writes:** Eliminates contention, enabling high-frequency write workloads.
+- **Two-Engine Model:** Writes shift to a larger engine when contention grows too high while the old engine continues serving reads.
+- **Wait free Reads & Writes:** Eliminates contention, enabling high-frequency write workloads.
 - **Just Run & Forget:** Self-managing & self-healing—no babysitting required!
 
 ---
@@ -23,24 +23,24 @@ A blazing-fast KV store written in pure Golang without any dependencies with nat
 
 💡 **nubmq is polling-free**—notifications are delivered **instantly!** 📨, polling is for suckers
 
-- 🎯 **Event Scheduler:** No CPU-wasting polling, just pure event-driven updates!
-- 🔥 **Supported Notifications:**
+- **Event Scheduler:** No CPU-wasting polling, just pure event-driven updates!
+- **Supported Notifications:**
   - **Key Expiry:** Get notified the moment a key expires.
   - **Key Updates:** Real-time updates whenever a key’s value changes.
-- 📡 **Subscription Model:**
+- **Subscription Model:**
   - Clients can **subscribe** to any key channel for updates.
   - Listen to the `~Ex` channel for key expiries.
 - **Highly Available, Non-Blocking Priority Message Delivery:**
-  - When contention rises, **SET/GET operations** are prioritized over event notifications. 🚦
+  - When contention rises, **SET/GET operations** are prioritized over event notifications.
 
 ---
 
-## 🔗 Event-Driven Connection Handling: No Bottlenecks, No Excuses
+## Event-Driven Connection Handling: No Bottlenecks, No Excuses
 
 💡 **Every connection gets its own read and write buffers** to enable non-blocking I/O across concurrent requests! 
 
-- 🚦 **Hierarchical Write Queues:** Critical operations (`SET`, `GET`) always get priority.
-- ⚡ **Ultra-fast Non-blocking I/O:** Every client interaction is measured in **microseconds**!
+- **Hierarchical Write Queues:** Critical operations (`SET`, `GET`) always get priority.
+- **Ultra-fast Non-blocking I/O:** Every client interaction is measured in **microseconds**!
 
 ---
 
@@ -66,11 +66,11 @@ A blazing-fast KV store written in pure Golang without any dependencies with nat
 
 ## 🛠 Features
 
-- ⚡ **Hyperfast SET/GET operations** 
-- ⏳ **Built-in Expiry with TTL** 
-- 📡 **Real-time Subscription Mechanism** 
-- 📝 **Pure Golang, No Dependencies** 
-- 🔥 **High-Performance Cache or NoSQL Mode** (Just increase memory limits)
+- **Hyperfast SET/GET operations** 
+- **Built-in Expiry with TTL** 
+- **Real-time Subscription Mechanism** 
+- **Pure Golang, No Dependencies** 
+- **High-Performance Cache or NoSQL Mode** (Just increase memory limits)
 
 ---
 
@@ -89,10 +89,10 @@ SUBSCRIBE <key>
 
 nubmq squeezes every drop of performance from modern CPUs!
 
-- 🔄 **Parallelized Goroutines:** No single-threaded nonsense—everything runs concurrently.
-- 🔗 **Atomic Operations:** Ensures rock-solid data integrity.
-- 🚀 **Benchmark Results:** 900µs write latency, 500µs read latency under extreme load.
-- 🏆 **Peak Throughput:** 115,809 ops/sec with 100 concurrent clients on an M2 MacBook Air.
+- **Parallelized Goroutines:** No single-threaded nonsense—everything runs concurrently.
+- **Atomic Operations:** Ensures rock-solid data integrity.
+- **Benchmark Results:** 900µs write latency, 500µs read latency under extreme load.
+- **Peak Throughput:** 115,809 ops/sec with 100 concurrent clients on an M2 MacBook Air.
 
 ---
 
@@ -104,7 +104,7 @@ nubmq squeezes every drop of performance from modern CPUs!
 | **Scalability**        | Auto-Scales Up/Down | Vertical Scaling | Horizontal Only | Limited        |
 | **Write Latency**      | **900µs**           | ~1.1ms           | ~1.5ms          | ~3ms           |
 | **Read Latency**       | **500µs**           | ~700µs           | ~1ms            | ~2ms           |
-| **Max Throughput**     | **115,809 ops/sec** | ~85,000 ops/sec  | ~60,000 ops/sec | ~20,000 ops/sec |
+| **Max Throughput**     | **178,766 ops/sec** | ~85,000 ops/sec  | ~60,000 ops/sec | ~20,000 ops/sec |
 | **Pub/Sub Support**    | Yes, Instantaneous  | Yes, Slow        | No              | No             |
 | **TTL Handling**       | Native, Optimized   | Yes, but Heavy   | No              | No             |
 | **Lock-Free Reads**    | **Yes**             | No               | Yes             | No             |
@@ -115,18 +115,20 @@ nubmq squeezes every drop of performance from modern CPUs!
 
 ---
 
-## 📈 Benchmarks 🚀
+## 📈 Benchmarks
 
-![Benchmarks](https://raw.githubusercontent.com/nubskr/nubskr.github.io/f3db48f2c4e6ccb95a04a3348da79678d8ae579d/_posts/ThroughputBench.png)
+I recently replaced sync.map for buckets to a custom hashtable implementation and got a ~40 percent performance gain!
+
+![Benchmarks](./assets/new_bench.png)
 
 Benchmarked on a 8 core fanless M2 air (all cores maxed out under load)
 
 - Concurrent Clients: **100**
-- Peak Throughput: **115,809 ops/sec**
-- Average Throughput: **100,961.54 ops/sec**
+- Peak Throughput: **178,766 ops/sec**
+- Average Throughput: **133,333.33 ops/sec**
 - Dataset Size: **1,000,000 unique keys**
-- Total Operations: **21,000,000 requests**
-- Total Time Tracked: **208 seconds**
+- Total Operations: **20,000,000 requests**
+- Total Time Tracked: **150 seconds**
 
 Would love it if someone can test on a better machine and post the results
 

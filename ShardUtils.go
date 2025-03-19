@@ -2,12 +2,11 @@ package main
 
 import (
 	"math"
-	"sync"
 )
 
 func getNewShard() *Shard {
 	return &Shard{
-		data: sync.Map{},
+		data: *GetNewCustomMap(),
 	}
 }
 

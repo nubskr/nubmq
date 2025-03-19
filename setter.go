@@ -21,20 +21,30 @@ func setAtIndex(idx int, keeper *ShardManagerKeeperTemp, request SetRequest) {
 	targetSM.mutex.RLock()
 	target := targetSM.Shards[localIdx]
 	targetSM.mutex.RUnlock()
-	value, ok := target.data.Load(key)
+	// this is literally double the work, first get then set, make Store() return a bool if it exists or not
 
-	if !ok {
-		atomic.AddInt64(&keeper.usedCapacity, 1)
-	} else {
-		log.Print("Ignore this log", value)
-	}
 	entry := Entry{
+		key:       key,
 		value:     val,
 		canExpire: canExpire,
 		TTL:       TTL,
 	}
+	alreadyExists := target.data.Store(key, entry)
+	// _val, _ok := target.data.Load(key)
+	// if _ok {
+	// 	log.Print("shit inserted, here is the value: ", _val)
+	// } else {
+	// 	// log.Fatal("we fucked up sir")
+	// }
+	// value, ok := target.data.Load(key)
 
-	target.data.Store(key, entry)
+	if !alreadyExists {
+		atomic.AddInt64(&keeper.usedCapacity, 1)
+	} else {
+		// log.Print("Ignore this log", val)
+	}
+
+	// target.data.Store(key, entry)
 	request.status <- struct{}{}
 }
 
@@ -53,20 +63,37 @@ func setAtIndexLazy(idx int, keeper *ShardManagerKeeperTemp, request SetRequest)
 	targetSM.mutex.RLock()
 	target := targetSM.Shards[localIdx]
 	targetSM.mutex.RUnlock()
-	value, ok := target.data.Load(key)
+	// value, ok := target.data.Load(key)
 
-	if !ok {
-		atomic.AddInt64(&keeper.usedCapacity, 1)
-	} else {
-		log.Print("Ignore this log", value)
-	}
+	// if !ok {
+	// 	atomic.AddInt64(&keeper.usedCapacity, 1)
+	// } else {
+	// 	log.Print("Ignore this log", value)
+	// }
 	entry := Entry{
+		key:       key,
 		value:     val,
 		canExpire: canExpire,
 		TTL:       TTL,
 	}
 
-	target.data.Store(key, entry)
+	// target.data.Store(key, entry)
+
+	alreadyExists := target.data.Store(key, entry)
+	// _val, _ok := target.data.Load(key)
+	// if _ok {
+	// 	log.Print("shit inserted, here is the value: ", _val)
+	// } else {
+	// 	// log.Fatal("we fucked up sir")
+	// }
+	// value, ok := target.data.Load(key)
+
+	if !alreadyExists {
+		atomic.AddInt64(&keeper.usedCapacity, 1)
+	} else {
+		// log.Print("Ignore this log", val)
+	}
+
 }
 
 // force inserts the key in sm without any checks, use with caution
@@ -103,14 +130,16 @@ func _setKey(request SetRequest) {
 			if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) >= atomic.LoadInt64(&ShardManagerKeeper.usedCapacity)*twichinessFactor {
 				ShardManagerKeeper.mutex.Lock()
 				log.Print("Downgrade requested")
-				migrateOrNot := DowngradeShardManagerKeeper(ShardManagerKeeper.totalCapacity, twichinessFactor)
+				// comment out downgrate logic to test out manual scaling
+				// migrateOrNot := DowngradeShardManagerKeeper(ShardManagerKeeper.totalCapacity, twichinessFactor)
+
 				ShardManagerKeeper.mutex.Unlock()
 
-				if migrateOrNot {
-					// log.Fatal("downsizing is getting triggered")
-					log.Print("triggering resizing")
-					go migrateKeys(&ShardManagerKeeper, &newShardManagerKeeper)
-				}
+				// if migrateOrNot {
+				// 	// log.Fatal("downsizing is getting triggered")
+				// 	log.Print("triggering resizing")
+				// 	go migrateKeys(&ShardManagerKeeper, &newShardManagerKeeper)
+				// }
 			}
 		}
 	} else {

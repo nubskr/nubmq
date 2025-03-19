@@ -46,6 +46,7 @@ func main() {
 	go HandleKeyTTLInsertion(&SetContainer, &UpdateChan)
 	go HandleKeyTTLEviction(&SetContainer, &UpdateChan, &EventQueue)
 	go eventNotificationHandler()
+	go appendToLog()
 
 	ln, err := net.Listen("tcp", ":8080")
 
@@ -55,8 +56,8 @@ func main() {
 
 	fmt.Println("Server listening on :8080")
 
-	ShardManagerKeeper = *getNewShardManagerKeeper(1)
-	newShardManagerKeeper = *getNewShardManagerKeeper(1)
+	ShardManagerKeeper = *getNewShardManagerKeeper(100)
+	newShardManagerKeeper = *getNewShardManagerKeeper(100)
 
 	for {
 		conn, err := ln.Accept()
