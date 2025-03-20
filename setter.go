@@ -129,17 +129,17 @@ func _setKey(request SetRequest) {
 			twichinessFactor := int64(2)
 			if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) >= atomic.LoadInt64(&ShardManagerKeeper.usedCapacity)*twichinessFactor {
 				ShardManagerKeeper.mutex.Lock()
-				log.Print("Downgrade requested")
+				log.Print("Downgrade requested, current size is: ", ShardManagerKeeper.totalCapacity)
 				// comment out downgrate logic to test out manual scaling
-				// migrateOrNot := DowngradeShardManagerKeeper(ShardManagerKeeper.totalCapacity, twichinessFactor)
+				migrateOrNot := DowngradeShardManagerKeeper(ShardManagerKeeper.totalCapacity, twichinessFactor)
 
 				ShardManagerKeeper.mutex.Unlock()
 
-				// if migrateOrNot {
-				// 	// log.Fatal("downsizing is getting triggered")
-				// 	log.Print("triggering resizing")
-				// 	go migrateKeys(&ShardManagerKeeper, &newShardManagerKeeper)
-				// }
+				if migrateOrNot {
+					// log.Fatal("downsizing is getting triggered")
+					log.Print("triggering resizing")
+					go migrateKeys(&ShardManagerKeeper, &newShardManagerKeeper)
+				}
 			}
 		}
 	} else {

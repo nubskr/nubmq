@@ -136,7 +136,7 @@ func UpgradeShardManagerKeeper(currentSize int64) bool {
 // this will get triggered when a bunch of keys expire and we're simply overaccomodating space
 func DowngradeShardManagerKeeper(currentSize int64, twichinessFactor int64) bool {
 	log.Print(ShardManagerKeeper.totalCapacity, atomic.LoadInt64(&ShardManagerKeeper.usedCapacity))
-	if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) < 2 || atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) < atomic.LoadInt64(&ShardManagerKeeper.usedCapacity)*twichinessFactor || atomic.LoadInt32(&ShardManagerKeeper.isResizing) != 0 || atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) < currentSize {
+	if atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) < 2 || atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) < atomic.LoadInt64(&ShardManagerKeeper.usedCapacity)*twichinessFactor || atomic.LoadInt32(&ShardManagerKeeper.isResizing) != 0 || atomic.LoadInt64(&ShardManagerKeeper.totalCapacity) < currentSize || currentSize <= INITIAL_SCALING_VALUE {
 		fmt.Println("False alarm, skipping downgrade")
 		return false
 	}

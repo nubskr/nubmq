@@ -6,7 +6,7 @@ import (
 
 var MaxConcurrentCoreWorkers int = 50
 var EVENT_NOTIFICATION_BUFFER int = 15 // WARN: magic number lmao, need it to avoid blocking connection reads in the core engine
-
+var INITIAL_SCALING_VALUE int64 = 127
 var setQueue chan SetRequest = make(chan SetRequest, MaxConcurrentCoreWorkers)
 var SetWG sync.WaitGroup
 var allowSets sync.Mutex

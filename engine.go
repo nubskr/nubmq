@@ -56,8 +56,8 @@ func main() {
 
 	fmt.Println("Server listening on :8080")
 
-	ShardManagerKeeper = *getNewShardManagerKeeper(100)
-	newShardManagerKeeper = *getNewShardManagerKeeper(100)
+	ShardManagerKeeper = *getNewShardManagerKeeper(INITIAL_SCALING_VALUE)
+	newShardManagerKeeper = *getNewShardManagerKeeper(INITIAL_SCALING_VALUE)
 
 	for {
 		conn, err := ln.Accept()

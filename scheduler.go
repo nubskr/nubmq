@@ -76,7 +76,7 @@ func HandleKeyTTLInsertion(setStorage *SetStorage, updateChan *chan time.Duratio
 }
 
 func HandleKeyTTLEviction(setStorage *SetStorage, updateChan *chan time.Duration, expirationEventChannel *chan Entry) {
-	defaultPollingTime := time.Duration(1 * time.Hour)
+	defaultPollingTime := time.Duration(10 * time.Second)
 	timer := time.NewTimer(defaultPollingTime)
 
 	for {
