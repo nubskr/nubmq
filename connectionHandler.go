@@ -110,6 +110,9 @@ func handleConnection(conn net.Conn) {
 		log.Print("Received from client: ", data)
 
 		stringData := strings.Fields(data)
+		if len(stringData) == 0 {
+			continue
+		}
 
 		/*
 			SET key value EX time_in_seconds
