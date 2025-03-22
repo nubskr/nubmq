@@ -102,7 +102,7 @@ func handleConnection(conn net.Conn) {
 		length, err := conn.Read(buffer)
 
 		if err != nil {
-			fmt.Println("an error occured while reading message:", err)
+			fmt.Println("client disconnected")
 			return
 		}
 
