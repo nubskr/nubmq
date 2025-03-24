@@ -38,15 +38,34 @@ func GetNewCustomMap() *CustomMap {
 }
 
 func (m *CustomMap) getHash(key string) int {
-	// get the first character, last character, and the middle character, get a XOR hash out of it % CUSTOM_MAP_BUCKET_SIZE
+	const prime1 = 0x85ebca6b
+	const prime2 = 0xc2b2ae35
+
 	length := len(key)
 	if length == 0 {
 		return 0
 	}
 
-	hash := int(key[0]) ^ int(key[length/2]) ^ int(key[length-1])
+	// first, last, mid
+	a := uint32(key[0])
+	b := uint32(key[length/2])
+	c := uint32(key[length-1])
 
-	return hash % CUSTOM_MAP_BUCKET_SIZE
+	// mix stuff
+	hash := a * prime1
+	hash ^= b * prime2
+	hash = (hash << 13) | (hash >> 19)
+	hash ^= c * prime1
+	hash = (hash << 15) | (hash >> 17)
+
+	// avalanche
+	hash ^= hash >> 16
+	hash *= 0x85ebca6b
+	hash ^= hash >> 13
+	hash *= 0xc2b2ae35
+	hash ^= hash >> 16
+
+	return int(hash) % CUSTOM_MAP_BUCKET_SIZE
 }
 
 func (m *CustomMap) Load(key string) (Entry, bool) {
