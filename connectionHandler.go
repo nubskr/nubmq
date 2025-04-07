@@ -18,7 +18,7 @@ func WriteStuffToConn(conn net.Conn, stuff string) {
 	}
 }
 
-var appendQueue chan int64 = make(chan int64, 50000000) // just don't block ffs
+var appendQueue chan int64 = make(chan int64, 600000) // just don't block ffs
 
 func appendToLog() {
 
