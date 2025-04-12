@@ -1,4 +1,5 @@
-# 🚀 nubmq: a high performant key-value cache engine
+![nubmq logo](./assets/nubmq.svg)
+# nubmq: a high performant key-value cache engine
 
 A blazing-fast KV store written in pure Golang without any dependencies with native pub-sub support, engineered for high-frequency, contention-heavy workloads.
 

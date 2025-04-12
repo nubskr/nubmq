@@ -1,0 +1,15 @@
+<svg width="300" height="100" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="100" fill="#0f0f0f"/>
+  <text x="20" y="65" font-family="monospace" font-size="48" fill="#00ff88" letter-spacing="2">
+    nubmq
+  </text>
+  <circle cx="260" cy="50" r="12" fill="#00ff88">
+    <animateTransform attributeName="transform"
+      attributeType="XML"
+      type="rotate"
+      from="0 260 50"
+      to="360 260 50"
+      dur="2s"
+      repeatCount="indefinite"/>
+  </circle>
+</svg>
